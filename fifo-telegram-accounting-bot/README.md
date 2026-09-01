@@ -302,12 +302,12 @@ the Railway service **Root Directory** to `/fifo-telegram-accounting-bot`.
    Leave `OPENAI_API_KEY` unset when AI is not required. Seal the Telegram token
    after saving it.
 
-4. Railway automatically detects the included `Dockerfile`. Clear any old custom
-   command such as `start.sh`. If a Start Command override is present, set it to
-   the stable `src`-layout launcher:
+4. Railway automatically detects the included `Dockerfile`, which installs the
+   package from `src`. Clear any old custom command such as `start.sh`. If a Start
+   Command override is present, set it to:
 
    ```text
-   python run.py
+   python -m fifo_accounting_bot
    ```
 
 5. Deploy as one persistent service. The bot uses Telegram long polling, so it
