@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from fifo_accounting_bot.bot.app import create_application
 from fifo_accounting_bot.config import Settings
@@ -9,6 +10,7 @@ from fifo_accounting_bot.database import (
     create_schema,
     create_session_factory,
 )
+from fifo_accounting_bot.legacy_migration import migrate_legacy_payload
 from fifo_accounting_bot.services import InventoryService
 
 
@@ -25,6 +27,17 @@ def main() -> None:
 
     engine = create_database_engine(settings.database_url)
     create_schema(engine)
+    migration_payload = os.getenv("LEGACY_SQLITE_MIGRATION_PAYLOAD", "").strip()
+    if migration_payload:
+        migration = migrate_legacy_payload(engine, migration_payload)
+        logging.getLogger(__name__).info(
+            "Legacy migration status=%s source=%s before=%s after=%s reason=%s",
+            migration.status,
+            migration.source_counts,
+            migration.before_counts,
+            migration.after_counts,
+            migration.reason,
+        )
     service = InventoryService(create_session_factory(engine))
     application = create_application(settings, service)
     logging.getLogger(__name__).info("Starting Accounter Telegram bot")
