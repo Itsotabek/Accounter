@@ -20,6 +20,7 @@ LANGUAGE_DISPLAY = {
 }
 
 FIELD_NAMES = {
+    "amount": {"en": "Amount", "uz": "Summa", "tr": "Tutar", "it": "Importo", "ru": "Сумма"},
     "quantity": {"en": "Quantity", "uz": "Miqdor", "tr": "Miktar", "it": "Quantità", "ru": "Количество"},
     "unit_cost": {"en": "Unit cost", "uz": "Birlik tannarxi", "tr": "Birim maliyeti", "it": "Costo unitario", "ru": "Цена за единицу"},
     "sale_price": {"en": "Sale price", "uz": "Sotuv narxi", "tr": "Satış fiyatı", "it": "Prezzo di vendita", "ru": "Цена продажи"},
@@ -36,6 +37,7 @@ BUTTONS: dict[str, dict[str, str]] = {
     "smart_import": {"en": "📷 QR / Smart import", "uz": "📷 QR / Aqlli import", "tr": "📷 QR / Akıllı aktarım", "it": "📷 QR / Import smart", "ru": "📷 QR / Умный импорт"},
     "help_ai": {"en": "🧠 Help & AI", "uz": "🧠 Yordam va AI", "tr": "🧠 Yardım ve AI", "it": "🧠 Aiuto e IA", "ru": "🧠 Помощь и ИИ"},
     "settings": {"en": "⚙️ Settings", "uz": "⚙️ Sozlamalar", "tr": "⚙️ Ayarlar", "it": "⚙️ Impostazioni", "ru": "⚙️ Настройки"},
+    "more": {"en": "☰ More", "uz": "☰ Boshqa", "tr": "☰ Daha fazla", "it": "☰ Altro", "ru": "☰ Ещё"},
     "language": {"en": "🌐 Change language", "uz": "🌐 Tilni o‘zgartirish", "tr": "🌐 Dili değiştir", "it": "🌐 Cambia lingua", "ru": "🌐 Сменить язык"},
     "cancel": {"en": "❌ Cancel", "uz": "❌ Bekor qilish", "tr": "❌ İptal", "it": "❌ Annulla", "ru": "❌ Отмена"},
     "today": {"en": "📅 Today", "uz": "📅 Bugun", "tr": "📅 Bugün", "it": "📅 Oggi", "ru": "📅 Сегодня"},
@@ -116,6 +118,134 @@ TEXT: dict[str, dict[str, str]] = {
         "tr": "👋 Accounter'a hoş geldiniz\n\nMuhasebe, faturalar, banka, raporlar ve FIFO stok işlemleri aşağıda:",
         "it": "👋 Benvenuto in Accounter\n\nContabilità, fatture, banca, bilanci e magazzino FIFO sono organizzati qui sotto:",
         "ru": "👋 Добро пожаловать в Accounter\n\nУчёт, счета, банк, отчёты и FIFO-склад собраны ниже:",
+    },
+    "more_panel": {
+        "en": "☰ MORE TOOLS\n\nBanking, contacts, activity, smart import, help, and personal settings are here.",
+        "uz": "☰ QO‘SHIMCHA VOSITALAR\n\nBank, kontaktlar, harakatlar, aqlli import, yordam va shaxsiy sozlamalar shu yerda.",
+        "tr": "☰ DİĞER ARAÇLAR\n\nBanka, kişiler, işlemler, akıllı aktarım, yardım ve kişisel ayarlar burada.",
+        "it": "☰ ALTRI STRUMENTI\n\nBanca, contatti, attività, importazione smart, aiuto e impostazioni personali sono qui.",
+        "ru": "☰ ДРУГИЕ ИНСТРУМЕНТЫ\n\nБанк, контакты, операции, умный импорт, помощь и личные настройки находятся здесь.",
+    },
+    "product_created": {
+        "en": "✅ Product created\n\n{sku} — {name}\nUnit: {unit}",
+        "uz": "✅ Mahsulot yaratildi\n\n{sku} — {name}\nBirlik: {unit}",
+        "tr": "✅ Ürün oluşturuldu\n\n{sku} — {name}\nBirim: {unit}",
+        "it": "✅ Prodotto creato\n\n{sku} — {name}\nUnità: {unit}",
+        "ru": "✅ Товар создан\n\n{sku} — {name}\nЕдиница: {unit}",
+    },
+    "invalid_sku": {
+        "en": "SKU must contain 1 to 64 characters. Try again.", "uz": "SKU 1–64 ta belgidan iborat bo‘lishi kerak. Qayta urinib ko‘ring.", "tr": "SKU 1–64 karakter olmalıdır. Tekrar deneyin.", "it": "Lo SKU deve contenere da 1 a 64 caratteri. Riprova.", "ru": "SKU должен содержать от 1 до 64 символов. Попробуйте снова."
+    },
+    "invalid_name": {
+        "en": "Name must contain 1 to 200 characters. Try again.", "uz": "Nom 1–200 ta belgidan iborat bo‘lishi kerak. Qayta urinib ko‘ring.", "tr": "Ad 1–200 karakter olmalıdır. Tekrar deneyin.", "it": "Il nome deve contenere da 1 a 200 caratteri. Riprova.", "ru": "Название должно содержать от 1 до 200 символов. Попробуйте снова."
+    },
+    "invalid_unit": {
+        "en": "Unit must contain 1 to 32 characters. Try again.", "uz": "Birlik 1–32 ta belgidan iborat bo‘lishi kerak. Qayta urinib ko‘ring.", "tr": "Birim 1–32 karakter olmalıdır. Tekrar deneyin.", "it": "L’unità deve contenere da 1 a 32 caratteri. Riprova.", "ru": "Единица должна содержать от 1 до 32 символов. Попробуйте снова."
+    },
+    "type_sku_prompt": {
+        "en": "Type the product SKU:", "uz": "Mahsulot SKU kodini yozing:", "tr": "Ürün SKU kodunu yazın:", "it": "Inserisci lo SKU del prodotto:", "ru": "Введите SKU товара:"
+    },
+    "remaining_stock": {
+        "en": "Remaining: {quantity} {unit}", "uz": "Qoldiq: {quantity} {unit}", "tr": "Kalan: {quantity} {unit}", "it": "Rimanenza: {quantity} {unit}", "ru": "Остаток: {quantity} {unit}"
+    },
+    "question_length": {
+        "en": "Please send a question between 1 and 1,500 characters.", "uz": "1 dan 1 500 tagacha belgili savol yuboring.", "tr": "Lütfen 1–1.500 karakterlik bir soru gönderin.", "it": "Invia una domanda da 1 a 1.500 caratteri.", "ru": "Отправьте вопрос длиной от 1 до 1500 символов."
+    },
+    "ai_temporary": {
+        "en": "The AI helper is temporarily unavailable. Your accounting data was not changed.", "uz": "AI yordamchi vaqtincha ishlamayapti. Hisob ma’lumotlaringiz o‘zgarmadi.", "tr": "AI yardımcısı geçici olarak kullanılamıyor. Muhasebe verileriniz değişmedi.", "it": "L’assistente IA non è momentaneamente disponibile. I dati contabili non sono stati modificati.", "ru": "ИИ-помощник временно недоступен. Данные учёта не изменены."
+    },
+    "private_only": {
+        "en": "This bot is private and your account is not authorized.", "uz": "Bu bot yopiq, hisobingizga ruxsat berilmagan.", "tr": "Bu bot özeldir ve hesabınız yetkili değildir.", "it": "Questo bot è privato e il tuo account non è autorizzato.", "ru": "Это закрытый бот, и у вашей учётной записи нет доступа."
+    },
+    "blocked": {
+        "en": "Access to this bot has been blocked by the owner.", "uz": "Bot egasi kirishingizni bloklagan.", "tr": "Bota erişiminiz sahibi tarafından engellendi.", "it": "L’accesso al bot è stato bloccato dal proprietario.", "ru": "Владелец заблокировал вам доступ к боту."
+    },
+    "action_failed": {
+        "en": "This action could not be completed. Check the entered data and try again.", "uz": "Amal bajarilmadi. Kiritilgan ma’lumotlarni tekshirib, qayta urinib ko‘ring.", "tr": "İşlem tamamlanamadı. Girilen bilgileri kontrol edip tekrar deneyin.", "it": "Impossibile completare l’operazione. Controlla i dati e riprova.", "ru": "Не удалось выполнить действие. Проверьте данные и попробуйте снова."
+    },
+    "duplicate_error": {
+        "en": "This record already exists.", "uz": "Bu yozuv allaqachon mavjud.", "tr": "Bu kayıt zaten mevcut.", "it": "Questo record esiste già.", "ru": "Такая запись уже существует."
+    },
+    "not_found_error": {
+        "en": "The requested record was not found.", "uz": "So‘ralgan yozuv topilmadi.", "tr": "İstenen kayıt bulunamadı.", "it": "Il record richiesto non è stato trovato.", "ru": "Запрошенная запись не найдена."
+    },
+    "stock_error": {
+        "en": "There is not enough stock for this sale.", "uz": "Bu sotuv uchun omborda yetarli mahsulot yo‘q.", "tr": "Bu satış için yeterli stok yok.", "it": "Le scorte non sono sufficienti per questa vendita.", "ru": "Для этой продажи недостаточно товара на складе."
+    },
+    "choose_another_sku": {
+        "en": "Choose or type another SKU.", "uz": "Boshqa SKU tanlang yoki yozing.", "tr": "Başka bir SKU seçin veya yazın.", "it": "Scegli o inserisci un altro SKU.", "ru": "Выберите или введите другой SKU."
+    },
+    "out_of_stock": {
+        "en": "{sku} is out of stock. Choose another product.", "uz": "{sku} omborda qolmagan. Boshqa mahsulotni tanlang.", "tr": "{sku} stokta yok. Başka bir ürün seçin.", "it": "{sku} è esaurito. Scegli un altro prodotto.", "ru": "{sku} закончился. Выберите другой товар."
+    },
+    "not_enough_stock": {
+        "en": "Not enough stock. Available: {quantity} {unit}. Try a smaller quantity.", "uz": "Omborda yetarli emas. Mavjud: {quantity} {unit}. Kamroq miqdor kiriting.", "tr": "Yeterli stok yok. Mevcut: {quantity} {unit}. Daha küçük bir miktar deneyin.", "it": "Scorte insufficienti. Disponibili: {quantity} {unit}. Prova una quantità minore.", "ru": "Недостаточно товара. Доступно: {quantity} {unit}. Укажите меньшее количество."
+    },
+    "use_last_cost": {
+        "en": "Use last cost · {amount}", "uz": "Oxirgi tannarx · {amount}", "tr": "Son maliyeti kullan · {amount}", "it": "Usa l’ultimo costo · {amount}", "ru": "Использовать последнюю цену · {amount}"
+    },
+    "use_last_price": {
+        "en": "Use last price · {amount}", "uz": "Oxirgi narx · {amount}", "tr": "Son fiyatı kullan · {amount}", "it": "Usa l’ultimo prezzo · {amount}", "ru": "Использовать последнюю цену · {amount}"
+    },
+    "purchase_recorded": {
+        "en": "✅ Purchase recorded\n\nBatch #{batch} · {sku}\n{quantity} × {cost} = {total}\nNew stock: {stock} {unit}",
+        "uz": "✅ Xarid yozildi\n\nPartiya #{batch} · {sku}\n{quantity} × {cost} = {total}\nYangi qoldiq: {stock} {unit}",
+        "tr": "✅ Alış kaydedildi\n\nParti #{batch} · {sku}\n{quantity} × {cost} = {total}\nYeni stok: {stock} {unit}",
+        "it": "✅ Acquisto registrato\n\nLotto #{batch} · {sku}\n{quantity} × {cost} = {total}\nNuova scorta: {stock} {unit}",
+        "ru": "✅ Покупка записана\n\nПартия №{batch} · {sku}\n{quantity} × {cost} = {total}\nНовый остаток: {stock} {unit}",
+    },
+    "now_out_of_stock": {
+        "en": "⚠️ This product is now out of stock.", "uz": "⚠️ Bu mahsulot endi omborda qolmadi.", "tr": "⚠️ Bu ürün artık stokta yok.", "it": "⚠️ Questo prodotto è ora esaurito.", "ru": "⚠️ Этот товар теперь закончился."
+    },
+    "low_stock": {
+        "en": "⚠️ Low stock: {quantity} {unit} remaining.", "uz": "⚠️ Qoldiq kam: {quantity} {unit} qoldi.", "tr": "⚠️ Düşük stok: {quantity} {unit} kaldı.", "it": "⚠️ Scorta bassa: restano {quantity} {unit}.", "ru": "⚠️ Низкий остаток: осталось {quantity} {unit}."
+    },
+    "choose_report_button": {
+        "en": "Please choose one of the report buttons.", "uz": "Hisobot tugmalaridan birini tanlang.", "tr": "Rapor düğmelerinden birini seçin.", "it": "Scegli uno dei pulsanti del report.", "ru": "Выберите одну из кнопок отчёта."
+    },
+    "smart_error": {
+        "en": "The QR or imported data could not be read. Try again or cancel.", "uz": "QR yoki import ma’lumoti o‘qilmadi. Qayta urinib ko‘ring yoki bekor qiling.", "tr": "QR veya içe aktarılan veri okunamadı. Tekrar deneyin veya iptal edin.", "it": "Impossibile leggere il QR o i dati importati. Riprova o annulla.", "ru": "Не удалось прочитать QR или импортированные данные. Повторите или отмените."
+    },
+    "smart_choose_action": {
+        "en": "Choose Purchase, Sale, or Cancel.", "uz": "Xarid, Sotuv yoki Bekor qilishni tanlang.", "tr": "Alış, Satış veya İptal'i seçin.", "it": "Scegli Acquisto, Vendita o Annulla.", "ru": "Выберите Покупку, Продажу или Отмену."
+    },
+    "owner_summary": {
+        "en": "🛡 OWNER PANEL\n\n👥 Registered users: {count}\n🤖 AI service: {ai}\n🔐 Access: owner-only",
+        "uz": "🛡 EGASI PANELI\n\n👥 Ro‘yxatdan o‘tganlar: {count}\n🤖 AI xizmati: {ai}\n🔐 Kirish: faqat egasi",
+        "tr": "🛡 SAHİP PANELİ\n\n👥 Kayıtlı kullanıcılar: {count}\n🤖 AI hizmeti: {ai}\n🔐 Erişim: yalnızca sahip",
+        "it": "🛡 PANNELLO PROPRIETARIO\n\n👥 Utenti registrati: {count}\n🤖 Servizio IA: {ai}\n🔐 Accesso: solo proprietario",
+        "ru": "🛡 ПАНЕЛЬ ВЛАДЕЛЬЦА\n\n👥 Зарегистрировано пользователей: {count}\n🤖 Сервис ИИ: {ai}\n🔐 Доступ: только владелец",
+    },
+    "connected": {"en": "connected", "uz": "ulangan", "tr": "bağlı", "it": "collegato", "ru": "подключён"},
+    "not_connected": {"en": "not connected", "uz": "ulanmagan", "tr": "bağlı değil", "it": "non collegato", "ru": "не подключён"},
+    "active": {"en": "active", "uz": "faol", "tr": "aktif", "it": "attivo", "ru": "активен"},
+    "user_blocked": {"en": "blocked", "uz": "bloklangan", "tr": "engelli", "it": "bloccato", "ru": "заблокирован"},
+    "unnamed": {"en": "Unnamed", "uz": "Nomsiz", "tr": "Adsız", "it": "Senza nome", "ru": "Без имени"},
+    "no_username": {"en": "no username", "uz": "username yo‘q", "tr": "kullanıcı adı yok", "it": "nessun username", "ru": "нет имени пользователя"},
+    "no_users": {"en": "No registered users yet.", "uz": "Hali foydalanuvchilar yo‘q.", "tr": "Henüz kayıtlı kullanıcı yok.", "it": "Nessun utente registrato.", "ru": "Зарегистрированных пользователей пока нет."},
+    "users_title": {"en": "👥 USERS", "uz": "👥 FOYDALANUVCHILAR", "tr": "👥 KULLANICILAR", "it": "👥 UTENTI", "ru": "👥 ПОЛЬЗОВАТЕЛИ"},
+    "owner_health": {
+        "en": "🩺 BOT HEALTH\n\n✅ Bot process: running\n✅ Database: connected\n⏱ Uptime: {hours}h {minutes}m\n📦 Inventory units: {units}\n🧠 AI: {ai}\n🏷 Version: {version}",
+        "uz": "🩺 BOT HOLATI\n\n✅ Bot: ishlayapti\n✅ Ma’lumotlar bazasi: ulangan\n⏱ Ish vaqti: {hours}s {minutes}daq\n📦 Ombor birliklari: {units}\n🧠 AI: {ai}\n🏷 Versiya: {version}",
+        "tr": "🩺 BOT SAĞLIĞI\n\n✅ Bot: çalışıyor\n✅ Veritabanı: bağlı\n⏱ Çalışma süresi: {hours}sa {minutes}dk\n📦 Stok birimi: {units}\n🧠 AI: {ai}\n🏷 Sürüm: {version}",
+        "it": "🩺 STATO DEL BOT\n\n✅ Processo bot: attivo\n✅ Database: collegato\n⏱ Attivo da: {hours}h {minutes}m\n📦 Unità in magazzino: {units}\n🧠 IA: {ai}\n🏷 Versione: {version}",
+        "ru": "🩺 СОСТОЯНИЕ БОТА\n\n✅ Бот: работает\n✅ База данных: подключена\n⏱ Время работы: {hours}ч {minutes}м\n📦 Единиц на складе: {units}\n🧠 ИИ: {ai}\n🏷 Версия: {version}",
+    },
+    "smart_buy_quantity": {
+        "en": "📥 Purchase · {sku}\n\nSend the quantity.", "uz": "📥 Xarid · {sku}\n\nMiqdorni yuboring.", "tr": "📥 Alış · {sku}\n\nMiktarı gönderin.", "it": "📥 Acquisto · {sku}\n\nInvia la quantità.", "ru": "📥 Покупка · {sku}\n\nОтправьте количество."
+    },
+    "smart_sell_quantity": {
+        "en": "📤 Sale · {sku}\nAvailable: {quantity} {unit}\n\nSend the quantity.", "uz": "📤 Sotuv · {sku}\nMavjud: {quantity} {unit}\n\nMiqdorni yuboring.", "tr": "📤 Satış · {sku}\nMevcut: {quantity} {unit}\n\nMiktarı gönderin.", "it": "📤 Vendita · {sku}\nDisponibile: {quantity} {unit}\n\nInvia la quantità.", "ru": "📤 Продажа · {sku}\nДоступно: {quantity} {unit}\n\nОтправьте количество."
+    },
+    "qr_recognized": {
+        "en": "✅ QR recognized\n\n{sku} — {name}\nStock: {quantity} {unit}\nFIFO value: {value}\n\nWhat should I do?",
+        "uz": "✅ QR tanildi\n\n{sku} — {name}\nQoldiq: {quantity} {unit}\nFIFO qiymati: {value}\n\nQaysi amal bajarilsin?",
+        "tr": "✅ QR tanındı\n\n{sku} — {name}\nStok: {quantity} {unit}\nFIFO değeri: {value}\n\nNe yapmalıyım?",
+        "it": "✅ QR riconosciuto\n\n{sku} — {name}\nScorta: {quantity} {unit}\nValore FIFO: {value}\n\nCosa vuoi fare?",
+        "ru": "✅ QR распознан\n\n{sku} — {name}\nОстаток: {quantity} {unit}\nСтоимость FIFO: {value}\n\nЧто сделать?",
+    },
+    "import_rejected": {
+        "en": "Import rejected. Check the product and values.", "uz": "Import rad etildi. Mahsulot va qiymatlarni tekshiring.", "tr": "İçe aktarma reddedildi. Ürün ve değerleri kontrol edin.", "it": "Importazione rifiutata. Controlla prodotto e valori.", "ru": "Импорт отклонён. Проверьте товар и значения."
     },
     "cancelled": {"en": "Cancelled. Choose another action:", "uz": "Bekor qilindi. Boshqa amalni tanlang:", "tr": "İptal edildi. Başka bir işlem seçin:", "it": "Operazione annullata. Scegli un’altra azione:", "ru": "Отменено. Выберите другое действие:"},
     "role_owner": {"en": "Owner", "uz": "Egasi", "tr": "Sahip", "it": "Proprietario", "ru": "Владелец"},
@@ -214,3 +344,16 @@ def text(key: str, language: str = DEFAULT_LANGUAGE, **values: object) -> str:
     translations = TEXT[key]
     template = translations.get(language, translations[DEFAULT_LANGUAGE])
     return template.format(**values)
+
+
+def error_text(error: Exception, language: str = DEFAULT_LANGUAGE) -> str:
+    """Keep internal service errors from leaking English into localized screens."""
+
+    if language == DEFAULT_LANGUAGE:
+        return str(error)
+    key = {
+        "DuplicateError": "duplicate_error",
+        "NotFoundError": "not_found_error",
+        "InsufficientStockError": "stock_error",
+    }.get(type(error).__name__, "action_failed")
+    return text(key, language)

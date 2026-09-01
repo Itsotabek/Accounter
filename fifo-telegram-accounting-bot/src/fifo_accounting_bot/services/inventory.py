@@ -13,10 +13,17 @@ from fifo_accounting_bot.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from fifo_accounting_bot.localization import (
+    canonicalize_unit,
+    localize_product_name,
+    localize_unit,
+    product_translations,
+)
 from fifo_accounting_bot.models import (
     ArchivedProduct,
     JournalEntry,
     Product,
+    ProductTranslation,
     PurchaseBatch,
     Sale,
     SaleAllocation,
@@ -65,10 +72,17 @@ class InventoryService:
     def session_factory(self) -> SessionFactory:
         return self._sessions
 
-    def add_product(self, owner_id: int, sku: str, name: str, unit: str = "pcs") -> ProductResult:
+    def add_product(
+        self,
+        owner_id: int,
+        sku: str,
+        name: str,
+        unit: str = "pcs",
+        language: str | None = None,
+    ) -> ProductResult:
         normalized_sku = sku.strip().upper()
         normalized_name = name.strip()
-        normalized_unit = unit.strip().lower()
+        normalized_unit = canonicalize_unit(unit)
         if not normalized_sku or len(normalized_sku) > 64:
             raise ValidationError("SKU must contain 1 to 64 characters.")
         if not normalized_name or len(normalized_name) > 200:
@@ -102,6 +116,17 @@ class InventoryService:
                 )
                 session.add(product)
                 session.flush()
+                translations = product_translations(normalized_name)
+                if language:
+                    translations[language] = normalized_name
+                session.add_all(
+                    ProductTranslation(
+                        product_id=product.id,
+                        language=translation_language,
+                        name=translation_name,
+                    )
+                    for translation_language, translation_name in translations.items()
+                )
                 result = ProductResult(product.id, product.sku, product.name, product.unit)
             return result
         except IntegrityError as exc:
@@ -284,14 +309,19 @@ class InventoryService:
             )
         return result
 
-    def get_stock(self, owner_id: int, sku: str | None = None) -> list[StockLine]:
+    def get_stock(
+        self,
+        owner_id: int,
+        sku: str | None = None,
+        language: str | None = None,
+    ) -> list[StockLine]:
         normalized_sku = sku.strip().upper() if sku else None
         quantity_sum = func.coalesce(func.sum(PurchaseBatch.remaining_quantity), 0)
         value_sum = func.coalesce(
             func.sum(PurchaseBatch.remaining_quantity * PurchaseBatch.unit_cost), 0
         )
         statement = (
-            select(Product.sku, Product.name, Product.unit, quantity_sum, value_sum)
+            select(Product.id, Product.sku, Product.name, Product.unit, quantity_sum, value_sum)
             .outerjoin(PurchaseBatch, PurchaseBatch.product_id == Product.id)
             .outerjoin(ArchivedProduct, ArchivedProduct.product_id == Product.id)
             .where(Product.owner_id == owner_id)
@@ -304,15 +334,33 @@ class InventoryService:
 
         with self._sessions() as session:
             rows = session.execute(statement).all()
+            translations: dict[int, dict[str, str]] = {}
+            if language and rows:
+                translated_rows = session.execute(
+                    select(
+                        ProductTranslation.product_id,
+                        ProductTranslation.language,
+                        ProductTranslation.name,
+                    ).where(
+                        ProductTranslation.product_id.in_([row[0] for row in rows]),
+                        ProductTranslation.language == language,
+                    )
+                ).all()
+                for product_id, translation_language, translated_name in translated_rows:
+                    translations.setdefault(product_id, {})[translation_language] = translated_name
         if normalized_sku and not rows:
             raise NotFoundError(f"Product {normalized_sku} was not found.")
         return [
             StockLine(
-                sku=row[0],
-                name=row[1],
-                unit=row[2],
-                quantity=Decimal(row[3]),
-                inventory_value=_money(Decimal(row[4])),
+                sku=row[1],
+                name=(
+                    localize_product_name(row[2], language, translations.get(row[0]))
+                    if language
+                    else row[2]
+                ),
+                unit=localize_unit(row[3], language) if language else row[3],
+                quantity=Decimal(row[4]),
+                inventory_value=_money(Decimal(row[5])),
             )
             for row in rows
         ]

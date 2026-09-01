@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fifo-telegram-accounting-bot"
-version = "0.4.0"
+version = "0.5.0"
 description = "A modular Telegram accounting bot with FIFO inventory and double-entry journal records."
 readme = "README.md"
 requires-python = ">=3.11"

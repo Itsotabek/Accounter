@@ -23,6 +23,12 @@ PHRASES = {
     },
 }
 
+PHRASES["en"].update({"sale_recorded": "Sale #{sale_id} recorded for {sku}", "quantity": "Quantity", "fifo_layers": "FIFO layers", "batch": "Batch", "gross_profit": "Gross profit", "period_to": "to", "unpriced_note": "Note: {count} sale(s) had no sale price; gross profit excludes those sales and their COGS.", "out_of_stock": "Out of stock", "all_stocked": "All listed products currently have stock.", "start_product": "Start by adding your first product."})
+PHRASES["uz"].update({"sale_recorded": "{sku} uchun #{sale_id} sotuv yozildi", "quantity": "Miqdor", "fifo_layers": "FIFO qatlamlari", "batch": "Partiya", "gross_profit": "Yalpi foyda", "period_to": "dan", "unpriced_note": "Izoh: {count} ta sotuvda narx ko‘rsatilmagan; yalpi foydaga bu sotuvlar va ularning tannarxi kiritilmadi.", "out_of_stock": "Omborda yo‘q", "all_stocked": "Ro‘yxatdagi barcha mahsulotlar omborda mavjud.", "start_product": "Birinchi mahsulotingizni qo‘shishdan boshlang."})
+PHRASES["tr"].update({"sale_recorded": "{sku} için #{sale_id} satış kaydedildi", "quantity": "Miktar", "fifo_layers": "FIFO katmanları", "batch": "Parti", "gross_profit": "Brüt kâr", "period_to": "–", "unpriced_note": "Not: {count} satışta fiyat yoktu; bu satışlar ve maliyetleri brüt kâra dahil edilmedi.", "out_of_stock": "Stokta yok", "all_stocked": "Listelenen tüm ürünler stokta.", "start_product": "İlk ürününüzü ekleyerek başlayın."})
+PHRASES["it"].update({"sale_recorded": "Vendita #{sale_id} registrata per {sku}", "quantity": "Quantità", "fifo_layers": "Lotti FIFO", "batch": "Lotto", "gross_profit": "Utile lordo", "period_to": "–", "unpriced_note": "Nota: {count} vendite erano senza prezzo; tali vendite e il relativo costo sono esclusi dall’utile lordo.", "out_of_stock": "Esauriti", "all_stocked": "Tutti i prodotti elencati sono disponibili.", "start_product": "Inizia aggiungendo il primo prodotto."})
+PHRASES["ru"].update({"sale_recorded": "Продажа №{sale_id} для {sku} записана", "quantity": "Количество", "fifo_layers": "Слои FIFO", "batch": "Партия", "gross_profit": "Валовая прибыль", "period_to": "—", "unpriced_note": "Примечание: у продаж без цены ({count}) выручка и их себестоимость не включены в валовую прибыль.", "out_of_stock": "Нет в наличии", "all_stocked": "Все товары из списка есть в наличии.", "start_product": "Начните с добавления первого товара."})
+
 
 def _p(language: str, key: str) -> str:
     return PHRASES.get(language, PHRASES["en"])[key]
@@ -40,22 +46,22 @@ def money(value: Decimal) -> str:
 
 def format_sale(result: SaleResult, language: str = "en") -> str:
     lines = [
-        f"Sale #{result.sale_id} recorded for {result.sku}",
-        f"Quantity: {quantity(result.quantity)}",
-        f"FIFO COGS: {money(result.cogs)}",
+        _p(language, "sale_recorded").format(sale_id=result.sale_id, sku=result.sku),
+        f"{_p(language, 'quantity')}: {quantity(result.quantity)}",
+        f"{_p(language, 'cogs')}: {money(result.cogs)}",
     ]
     if result.revenue is not None:
         lines.extend(
             [
-                f"Revenue: {money(result.revenue)}",
-                f"Gross profit: {money(result.gross_profit or Decimal('0'))}",
+                f"{_p(language, 'revenue')}: {money(result.revenue)}",
+                f"{_p(language, 'gross_profit')}: {money(result.gross_profit or Decimal('0'))}",
             ]
         )
     else:
-        lines.append("Revenue: not supplied")
-    lines.append("FIFO layers:")
+        lines.append(f"{_p(language, 'revenue')}: {_p(language, 'not_supplied')}")
+    lines.append(f"{_p(language, 'fifo_layers')}:")
     lines.extend(
-        f"• Batch #{layer.batch_id} ({layer.purchased_on.isoformat()}): "
+        f"• {_p(language, 'batch')} #{layer.batch_id} ({layer.purchased_on.isoformat()}): "
         f"{quantity(layer.quantity)} × {money(layer.unit_cost)} = {money(layer.cost)}"
         for layer in result.layers
     )
@@ -78,7 +84,7 @@ def format_stock(lines: list[StockLine], language: str = "en") -> str:
 
 def format_report(report: InventoryReport, language: str = "en") -> str:
     if report.period_start and report.period_end:
-        period = f"{report.period_start.isoformat()} to {report.period_end.isoformat()}"
+        period = f"{report.period_start.isoformat()} {_p(language, 'period_to')} {report.period_end.isoformat()}"
     else:
         period = _p(language, "all_time")
     output = [
@@ -96,10 +102,7 @@ def format_report(report: InventoryReport, language: str = "en") -> str:
         f"• {_p(language, 'fifo_value')}: {money(report.inventory_value)}",
     ]
     if report.unpriced_sales_count:
-        output.append(
-            f"Note: {report.unpriced_sales_count} sale(s) had no sale price; "
-            "gross profit excludes those sales and their COGS."
-        )
+        output.append(_p(language, "unpriced_note").format(count=report.unpriced_sales_count))
     return "\n".join(output)
 
 
@@ -123,11 +126,11 @@ def format_dashboard(stock: list[StockLine], report: InventoryReport, language: 
     if out_of_stock:
         shown = ", ".join(out_of_stock[:5])
         suffix = "…" if len(out_of_stock) > 5 else ""
-        output.extend(["", f"⚠️ Out of stock: {shown}{suffix}"])
+        output.extend(["", f"⚠️ {_p(language, 'out_of_stock')}: {shown}{suffix}"])
     elif stock:
-        output.extend(["", "✅ All listed products currently have stock."])
+        output.extend(["", f"✅ {_p(language, 'all_stocked')}"])
     else:
-        output.extend(["", "Start by adding your first product."])
+        output.extend(["", _p(language, "start_product")])
     return "\n".join(output)
 
 

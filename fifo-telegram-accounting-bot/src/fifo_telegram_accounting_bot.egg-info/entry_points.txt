@@ -1,2 +1,0 @@
-[console_scripts]
-fifo-accounting-bot = fifo_accounting_bot.main:main

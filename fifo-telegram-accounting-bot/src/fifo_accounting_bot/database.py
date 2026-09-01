@@ -8,7 +8,17 @@ from fifo_accounting_bot.models import Base
 SessionFactory = sessionmaker[Session]
 
 
+def normalize_database_url(database_url: str) -> str:
+    """Select psycopg 3 when a provider supplies a generic PostgreSQL URL."""
+    if database_url.startswith("postgres://"):
+        return "postgresql+psycopg://" + database_url.removeprefix("postgres://")
+    if database_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + database_url.removeprefix("postgresql://")
+    return database_url
+
+
 def create_database_engine(database_url: str) -> Engine:
+    database_url = normalize_database_url(database_url)
     engine_options: dict[str, object] = {"pool_pre_ping": True}
     if database_url.startswith("sqlite"):
         engine_options["connect_args"] = {"check_same_thread": False}

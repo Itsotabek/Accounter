@@ -26,11 +26,14 @@ from fifo_accounting_bot.bot.i18n import (
     LANGUAGE_DISPLAY,
     button,
     button_values,
+    error_text,
+    field_name,
     matches_button,
     text as translated_text,
 )
 from fifo_accounting_bot.config import Settings
 from fifo_accounting_bot.exceptions import AccountingError
+from fifo_accounting_bot.localization import localize_account_name
 from fifo_accounting_bot.services import AccountingService, InventoryService, UserService
 
 (
@@ -177,12 +180,37 @@ COPY: dict[str, dict[str, str]] = {
     "saved": {
         "en": "✅ Saved and posted to the general ledger.", "uz": "✅ Saqlandi va bosh kitobga yozildi.", "tr": "✅ Kaydedildi ve büyük deftere işlendi.", "it": "✅ Salvato e contabilizzato nel libro mastro.", "ru": "✅ Сохранено и проведено в главной книге."
     },
+    "no_reversible": {
+        "en": "No reversible entries yet. Inventory and invoice corrections use their specialized records.", "uz": "Hali bekor qilinadigan yozuv yo‘q. Ombor va hisob-faktura tuzatishlari alohida yozuvlar orqali bajariladi.", "tr": "Henüz ters çevrilebilir kayıt yok. Stok ve fatura düzeltmeleri kendi kayıtlarını kullanır.", "it": "Non ci sono movimenti stornabili. Le rettifiche di magazzino e fatture usano registrazioni dedicate.", "ru": "Пока нет операций для сторнирования. Исправления склада и счетов выполняются через специальные записи."
+    },
+    "choose_reverse": {
+        "en": "Choose the entry to reverse:", "uz": "Bekor qilinadigan yozuvni tanlang:", "tr": "Ters çevrilecek kaydı seçin:", "it": "Scegli il movimento da stornare:", "ru": "Выберите операцию для сторнирования:"
+    },
+    "reverse_review": {
+        "en": "↩️ REVERSE ENTRY\n\n{selection}\nReason: {reason}\n\nCreate an auditable reversing entry?",
+        "uz": "↩️ YOZUVNI BEKOR QILISH\n\n{selection}\nSabab: {reason}\n\nTekshiriladigan teskari yozuv yaratilsinmi?",
+        "tr": "↩️ KAYDI TERS ÇEVİR\n\n{selection}\nNeden: {reason}\n\nDenetlenebilir ters kayıt oluşturulsun mu?",
+        "it": "↩️ STORNA MOVIMENTO\n\n{selection}\nMotivo: {reason}\n\nCreare una registrazione di storno tracciabile?",
+        "ru": "↩️ СТОРНИРОВАНИЕ\n\n{selection}\nПричина: {reason}\n\nСоздать отслеживаемую обратную проводку?",
+    },
+}
+
+TERMS: dict[str, dict[str, str]] = {
+    "en": {"as_of": "As of", "cash_bank": "Cash & bank", "receivables": "Receivables", "payables": "Payables", "inventory": "Inventory", "this_month": "THIS MONTH", "income": "Income", "expenses": "Expenses", "net_profit": "Net profit", "assets": "Assets", "liabilities_equity": "Liabilities + equity", "total": "Total", "due": "Due", "paid": "Paid", "outstanding": "Outstanding", "status": "Status", "from": "FROM", "to": "TO", "cash_bank_title": "CASH & BANK", "ledger": "GENERAL LEDGER", "reversed": "reversed", "no_entries": "No entries yet.", "profit_loss": "PROFIT & LOSS", "total_income": "Total income", "total_expenses": "Total expenses", "balance_sheet": "BALANCE SHEET", "liabilities": "Liabilities", "equity": "Equity", "current_earnings": "Current earnings", "total_assets": "Total assets", "total_liabilities": "Total liabilities", "total_equity": "Total equity", "check": "CHECK", "trial_balance": "TRIAL BALANCE", "account_debit_credit": "Account · Debit · Credit", "receivables_title": "RECEIVABLES", "payables_title": "PAYABLES", "overdue": "OVERDUE", "nothing_outstanding": "Nothing outstanding.", "total_outstanding": "TOTAL OUTSTANDING", "confirm_entry": "Confirm this balanced accounting entry?", "review": "REVIEW"},
+    "uz": {"as_of": "Sana", "cash_bank": "Kassa va bank", "receivables": "Debitorlik", "payables": "Kreditorlik", "inventory": "Ombor", "this_month": "SHU OY", "income": "Daromad", "expenses": "Xarajatlar", "net_profit": "Sof foyda", "assets": "Aktivlar", "liabilities_equity": "Majburiyatlar + kapital", "total": "Jami", "due": "Muddat", "paid": "To‘landi", "outstanding": "Qoldiq", "status": "Holat", "from": "QAYERDAN", "to": "QAYERGA", "cash_bank_title": "KASSA VA BANK", "ledger": "BOSH KITOB", "reversed": "bekor qilingan", "no_entries": "Hali yozuv yo‘q.", "profit_loss": "FOYDA VA ZARAR", "total_income": "Jami daromad", "total_expenses": "Jami xarajat", "balance_sheet": "BALANS", "liabilities": "Majburiyatlar", "equity": "Kapital", "current_earnings": "Joriy foyda", "total_assets": "Jami aktivlar", "total_liabilities": "Jami majburiyatlar", "total_equity": "Jami kapital", "check": "TEKSHIRUV", "trial_balance": "AYLANMA BALANSI", "account_debit_credit": "Hisob · Debet · Kredit", "receivables_title": "DEBITORLIK", "payables_title": "KREDITORLIK", "overdue": "MUDDATI O‘TGAN", "nothing_outstanding": "Ochiq qoldiq yo‘q.", "total_outstanding": "JAMI QOLDIQ", "confirm_entry": "Balanslangan yozuvni tasdiqlaysizmi?", "review": "TEKSHIRUV"},
+    "tr": {"as_of": "Tarih", "cash_bank": "Kasa ve banka", "receivables": "Alacaklar", "payables": "Borçlar", "inventory": "Stok", "this_month": "BU AY", "income": "Gelir", "expenses": "Giderler", "net_profit": "Net kâr", "assets": "Varlıklar", "liabilities_equity": "Borçlar + özkaynak", "total": "Toplam", "due": "Vade", "paid": "Ödenen", "outstanding": "Kalan", "status": "Durum", "from": "KİMDEN", "to": "KİME", "cash_bank_title": "KASA VE BANKA", "ledger": "BÜYÜK DEFTER", "reversed": "ters çevrildi", "no_entries": "Henüz kayıt yok.", "profit_loss": "KÂR VE ZARAR", "total_income": "Toplam gelir", "total_expenses": "Toplam gider", "balance_sheet": "BİLANÇO", "liabilities": "Borçlar", "equity": "Özkaynak", "current_earnings": "Dönem kârı", "total_assets": "Toplam varlık", "total_liabilities": "Toplam borç", "total_equity": "Toplam özkaynak", "check": "KONTROL", "trial_balance": "MİZAN", "account_debit_credit": "Hesap · Borç · Alacak", "receivables_title": "ALACAKLAR", "payables_title": "BORÇLAR", "overdue": "GECİKMİŞ", "nothing_outstanding": "Açık bakiye yok.", "total_outstanding": "TOPLAM AÇIK", "confirm_entry": "Dengeli muhasebe kaydını onaylıyor musunuz?", "review": "KONTROL"},
+    "it": {"as_of": "Al", "cash_bank": "Cassa e banca", "receivables": "Crediti", "payables": "Debiti", "inventory": "Magazzino", "this_month": "QUESTO MESE", "income": "Ricavi", "expenses": "Costi", "net_profit": "Utile netto", "assets": "Attività", "liabilities_equity": "Passività + patrimonio netto", "total": "Totale", "due": "Scadenza", "paid": "Pagato", "outstanding": "Residuo", "status": "Stato", "from": "DA", "to": "A", "cash_bank_title": "CASSA E BANCA", "ledger": "LIBRO MASTRO", "reversed": "stornato", "no_entries": "Nessun movimento.", "profit_loss": "CONTO ECONOMICO", "total_income": "Totale ricavi", "total_expenses": "Totale costi", "balance_sheet": "STATO PATRIMONIALE", "liabilities": "Passività", "equity": "Patrimonio netto", "current_earnings": "Utile corrente", "total_assets": "Totale attività", "total_liabilities": "Totale passività", "total_equity": "Totale patrimonio netto", "check": "CONTROLLO", "trial_balance": "BILANCIO DI VERIFICA", "account_debit_credit": "Conto · Dare · Avere", "receivables_title": "CREDITI CLIENTI", "payables_title": "DEBITI FORNITORI", "overdue": "SCADUTO", "nothing_outstanding": "Nessun importo aperto.", "total_outstanding": "TOTALE APERTO", "confirm_entry": "Confermare questa registrazione bilanciata?", "review": "RIEPILOGO"},
+    "ru": {"as_of": "На дату", "cash_bank": "Касса и банк", "receivables": "Дебиторская задолженность", "payables": "Кредиторская задолженность", "inventory": "Запасы", "this_month": "ЭТОТ МЕСЯЦ", "income": "Доходы", "expenses": "Расходы", "net_profit": "Чистая прибыль", "assets": "Активы", "liabilities_equity": "Обязательства + капитал", "total": "Итого", "due": "Срок", "paid": "Оплачено", "outstanding": "Остаток", "status": "Статус", "from": "ИЗ", "to": "В", "cash_bank_title": "КАССА И БАНК", "ledger": "ГЛАВНАЯ КНИГА", "reversed": "сторнировано", "no_entries": "Записей пока нет.", "profit_loss": "ПРИБЫЛИ И УБЫТКИ", "total_income": "Всего доходов", "total_expenses": "Всего расходов", "balance_sheet": "БАЛАНС", "liabilities": "Обязательства", "equity": "Капитал", "current_earnings": "Текущая прибыль", "total_assets": "Всего активов", "total_liabilities": "Всего обязательств", "total_equity": "Всего капитала", "check": "ПРОВЕРКА", "trial_balance": "ОБОРОТНАЯ ВЕДОМОСТЬ", "account_debit_credit": "Счёт · Дебет · Кредит", "receivables_title": "ДЕБИТОРСКАЯ ЗАДОЛЖЕННОСТЬ", "payables_title": "КРЕДИТОРСКАЯ ЗАДОЛЖЕННОСТЬ", "overdue": "ПРОСРОЧЕНО", "nothing_outstanding": "Открытых сумм нет.", "total_outstanding": "ВСЕГО ОТКРЫТО", "confirm_entry": "Подтвердить сбалансированную проводку?", "review": "ПРОВЕРКА"},
 }
 
 
 def _t(key: str, language: str, **values: object) -> str:
     translations = COPY[key]
     return translations.get(language, translations["en"]).format(**values)
+
+
+def _u(key: str, language: str) -> str:
+    return TERMS.get(language, TERMS["en"]).get(key, TERMS["en"][key])
 
 
 class AccountingMenuHandlers:
@@ -318,20 +346,20 @@ class AccountingMenuHandlers:
         language = self._language(context, user_id)
         lines = [
             f"{button('dashboard', language).upper()}",
-            f"As of {today.isoformat()}",
+            f"{_u('as_of', language)} {today.isoformat()}",
             "",
-            f"💵 Cash & bank: {money(cash_total)}",
-            f"📥 Receivables: {money(receivables.total_outstanding)}",
-            f"📤 Payables: {money(payables.total_outstanding)}",
-            f"📦 Inventory: {money(inventory_value)}",
+            f"💵 {_u('cash_bank', language)}: {money(cash_total)}",
+            f"📥 {_u('receivables', language)}: {money(receivables.total_outstanding)}",
+            f"📤 {_u('payables', language)}: {money(payables.total_outstanding)}",
+            f"📦 {_u('inventory', language)}: {money(inventory_value)}",
             "",
-            "THIS MONTH",
-            f"Income: {money(profit.total_income)}",
-            f"Expenses: {money(profit.total_expenses)}",
-            f"Net profit: {money(profit.net_profit)}",
+            _u("this_month", language),
+            f"{_u('income', language)}: {money(profit.total_income)}",
+            f"{_u('expenses', language)}: {money(profit.total_expenses)}",
+            f"{_u('net_profit', language)}: {money(profit.net_profit)}",
             "",
-            f"Assets: {money(balance.total_assets)}",
-            f"Liabilities + equity: {money(balance.total_liabilities + balance.total_equity)}",
+            f"{_u('assets', language)}: {money(balance.total_assets)}",
+            f"{_u('liabilities_equity', language)}: {money(balance.total_liabilities + balance.total_equity)}",
         ]
         await self._reply(
             update, "\n".join(lines), self._main_keyboard(language, user_id)
@@ -575,7 +603,12 @@ class AccountingMenuHandlers:
         lines = [button("contacts", language).upper(), ""]
         for item in contacts:
             details = " · ".join(value for value in (item.email, item.phone, item.tax_id) if value)
-            lines.append(f"• #{item.id} {item.display_name} — {item.contact_type}" + (f"\n  {details}" if details else ""))
+            contact_key = {
+                "customer": "contact_customer",
+                "supplier": "contact_supplier",
+                "both": "contact_both",
+            }.get(item.contact_type, "contact_both")
+            lines.append(f"• #{item.id} {item.display_name} — {button(contact_key, language)}" + (f"\n  {details}" if details else ""))
         if not contacts:
             lines.append(_t("no_contacts", language))
         await self._reply(update, "\n".join(lines), self._contacts_keyboard(language))
@@ -618,7 +651,8 @@ class AccountingMenuHandlers:
             return ConversationHandler.END
         choices = {f"#{item.id} · {item.display_name}": item.id for item in contacts}
         draft["choices"] = choices
-        await self._reply(update, _t("choose_contact", language, role=role), self._choice_keyboard(list(choices), language))
+        role_label = button("contact_customer" if role == "customer" else "contact_supplier", language)
+        await self._reply(update, _t("choose_contact", language, role=role_label), self._choice_keyboard(list(choices), language))
         return DOCUMENT_CONTACT
 
     async def document_contact(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -679,7 +713,7 @@ class AccountingMenuHandlers:
             return await self._error(update, context, exc)
         language = self._language(context, update.effective_user.id)
         context.user_data.pop("accounting_draft", None)
-        await self._reply(update, f"✅ {result.number}\n{result.contact_name}\nTotal: {money(result.total)}\nDue: {result.due_date.isoformat()}", self._main_keyboard(language, update.effective_user.id))
+        await self._reply(update, f"✅ {result.number}\n{result.contact_name}\n{_u('total', language)}: {money(result.total)}\n{_u('due', language)}: {result.due_date.isoformat()}", self._main_keyboard(language, update.effective_user.id))
         return ConversationHandler.END
 
     async def begin_invoice_payment(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -711,7 +745,7 @@ class AccountingMenuHandlers:
         draft.pop("choices", None)
         language = self._language(context, update.effective_user.id)
         rows = [[button("full_amount", language)], [button("cancel", language)]]
-        await self._reply(update, f"{_t('amount', language)}\nOutstanding: {money(document.outstanding)}", self._keyboard(rows))
+        await self._reply(update, f"{_t('amount', language)}\n{_u('outstanding', language)}: {money(document.outstanding)}", self._keyboard(rows))
         return PAYMENT_AMOUNT
 
     async def payment_amount(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -758,7 +792,7 @@ class AccountingMenuHandlers:
             return await self._error(update, context, exc)
         language = self._language(context, update.effective_user.id)
         context.user_data.pop("accounting_draft", None)
-        await self._reply(update, f"✅ {result.number}\nPaid: {money(result.paid_amount)}\nOutstanding: {money(result.outstanding)}\nStatus: {result.status}", self._main_keyboard(language, update.effective_user.id))
+        await self._reply(update, f"✅ {result.number}\n{_u('paid', language)}: {money(result.paid_amount)}\n{_u('outstanding', language)}: {money(result.outstanding)}\n{_u('status', language)}: {result.status}", self._main_keyboard(language, update.effective_user.id))
         return ConversationHandler.END
 
     async def show_cash_balances(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -767,7 +801,10 @@ class AccountingMenuHandlers:
             return ConversationHandler.END
         language = self._language(context, user_id)
         rows = await asyncio.to_thread(self._accounting.cash_balances, user_id)
-        text = "💵 CASH & BANK\n\n" + "\n".join(f"{item.code} · {item.name}: {money(item.balance)}" for item in rows)
+        text = f"💵 {_u('cash_bank_title', language)}\n\n" + "\n".join(
+            f"{item.code} · {localize_account_name(item.code, item.name, language)}: {money(item.balance)}"
+            for item in rows
+        )
         await self._reply(update, text, self._banking_keyboard(language))
         return ConversationHandler.END
 
@@ -777,7 +814,7 @@ class AccountingMenuHandlers:
             return ConversationHandler.END
         context.user_data["accounting_draft"] = {"operation": "transfer"}
         language = self._language(context, user_id)
-        await self._reply(update, "FROM\n" + _t("choose_account", language), self._money_keyboard(language))
+        await self._reply(update, f"{_u('from', language)}\n" + _t("choose_account", language), self._money_keyboard(language))
         return TRANSFER_FROM
 
     async def transfer_from(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -786,7 +823,7 @@ class AccountingMenuHandlers:
             return TRANSFER_FROM
         context.user_data["accounting_draft"]["from_account"] = code
         language = self._language(context, update.effective_user.id)
-        await self._reply(update, "TO\n" + _t("choose_account", language), self._money_keyboard(language))
+        await self._reply(update, f"{_u('to', language)}\n" + _t("choose_account", language), self._money_keyboard(language))
         return TRANSFER_TO
 
     async def transfer_to(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -837,9 +874,12 @@ class AccountingMenuHandlers:
         if user_id is None:
             return ConversationHandler.END
         accounts = await asyncio.to_thread(self._accounting.list_accounts, user_id)
-        choices = {f"{item.code} · {item.name}": item.code for item in accounts}
-        context.user_data["accounting_draft"] = {"operation": "journal", "choices": choices}
         language = self._language(context, user_id)
+        choices = {
+            f"{item.code} · {localize_account_name(item.code, item.name, language)}": item.code
+            for item in accounts
+        }
+        context.user_data["accounting_draft"] = {"operation": "journal", "choices": choices}
         await self._reply(update, _t("choose_debit", language), self._choice_keyboard(list(choices), language))
         return JOURNAL_DEBIT
 
@@ -908,12 +948,12 @@ class AccountingMenuHandlers:
             return ConversationHandler.END
         language = self._language(context, user_id)
         items = await asyncio.to_thread(self._accounting.recent_transactions, user_id, 15)
-        lines = ["📖 GENERAL LEDGER", ""]
+        lines = [f"📖 {_u('ledger', language)}", ""]
         for item in items:
-            status = " ↩ reversed" if item.status == "reversed" else ""
+            status = f" ↩ {_u('reversed', language)}" if item.status == "reversed" else ""
             lines.append(f"#{item.id} · {item.transaction_date.isoformat()} · {money(item.amount)}{status}\n{item.description}")
         if not items:
-            lines.append("No entries yet.")
+            lines.append(_u("no_entries", language))
         await self._reply(update, "\n\n".join(lines), self._banking_keyboard(language))
         return ConversationHandler.END
 
@@ -924,11 +964,11 @@ class AccountingMenuHandlers:
         items = await asyncio.to_thread(self._accounting.recent_transactions, user_id, 12, reversible_only=True)
         language = self._language(context, user_id)
         if not items:
-            await self._reply(update, "No reversible entries yet. Inventory and invoice corrections use their specialized records.", self._banking_keyboard(language))
+            await self._reply(update, _t("no_reversible", language), self._banking_keyboard(language))
             return ConversationHandler.END
         choices = {f"#{item.id} · {item.transaction_date.isoformat()} · {money(item.amount)} · {item.description[:35]}": item.id for item in items}
         context.user_data["accounting_draft"] = {"operation": "correction", "choices": choices}
-        await self._reply(update, "Choose the entry to reverse:", self._choice_keyboard(list(choices), language))
+        await self._reply(update, _t("choose_reverse", language), self._choice_keyboard(list(choices), language))
         return CORRECTION_SELECT
 
     async def correction_select(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -945,7 +985,16 @@ class AccountingMenuHandlers:
         draft = context.user_data["accounting_draft"]
         draft["reason"] = self._text(update)
         language = self._language(context, update.effective_user.id)
-        await self._reply(update, f"↩️ REVERSE ENTRY\n\n{draft['selection']}\nReason: {draft['reason']}\n\nCreate an auditable reversing entry?", self._confirm_keyboard(language))
+        await self._reply(
+            update,
+            _t(
+                "reverse_review",
+                language,
+                selection=draft["selection"],
+                reason=draft["reason"],
+            ),
+            self._confirm_keyboard(language),
+        )
         return CORRECTION_CONFIRM
 
     async def confirm_correction(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -965,7 +1014,7 @@ class AccountingMenuHandlers:
         today = date.today()
         report = await asyncio.to_thread(self._accounting.profit_and_loss, user_id, today.replace(day=1), today)
         language = self._language(context, user_id)
-        await self._reply(update, self._format_profit_loss(report), self._reports_keyboard(language))
+        await self._reply(update, self._format_profit_loss(report, language), self._reports_keyboard(language))
         return ConversationHandler.END
 
     async def show_balance_sheet(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -974,7 +1023,7 @@ class AccountingMenuHandlers:
             return ConversationHandler.END
         report = await asyncio.to_thread(self._accounting.balance_sheet, user_id)
         language = self._language(context, user_id)
-        await self._reply(update, self._format_balance_sheet(report), self._reports_keyboard(language))
+        await self._reply(update, self._format_balance_sheet(report, language), self._reports_keyboard(language))
         return ConversationHandler.END
 
     async def show_trial_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -983,7 +1032,7 @@ class AccountingMenuHandlers:
             return ConversationHandler.END
         report = await asyncio.to_thread(self._accounting.trial_balance, user_id)
         language = self._language(context, user_id)
-        await self._reply(update, self._format_trial_balance(report), self._reports_keyboard(language))
+        await self._reply(update, self._format_trial_balance(report, language), self._reports_keyboard(language))
         return ConversationHandler.END
 
     async def show_receivables(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -998,7 +1047,7 @@ class AccountingMenuHandlers:
             return ConversationHandler.END
         report = await asyncio.to_thread(self._accounting.open_items, user_id, document_type)
         language = self._language(context, user_id)
-        await self._reply(update, self._format_open_items(report, document_type), self._reports_keyboard(language))
+        await self._reply(update, self._format_open_items(report, document_type, language), self._reports_keyboard(language))
         return ConversationHandler.END
 
     async def restart(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1048,12 +1097,12 @@ class AccountingMenuHandlers:
         context.user_data.pop("accounting_draft", None)
         user_id = update.effective_user.id
         language = self._language(context, user_id)
-        await self._reply(update, f"⚠️ {error}", self._main_keyboard(language, user_id))
+        await self._reply(update, f"⚠️ {error_text(error, language)}", self._main_keyboard(language, user_id))
         return ConversationHandler.END
 
     async def _retry_number(self, update: Update, context: ContextTypes.DEFAULT_TYPE, state: int) -> int:
         language = self._language(context, update.effective_user.id)
-        await self._reply(update, translated_text("invalid_number", language, field="Amount"))
+        await self._reply(update, translated_text("invalid_number", language, field=field_name("amount", language)))
         return state
 
     async def _retry_date(self, update: Update, context: ContextTypes.DEFAULT_TYPE, state: int) -> int:
@@ -1066,11 +1115,11 @@ class AccountingMenuHandlers:
         if user is None:
             return None
         if self._allowed_user_ids and user.id not in self._allowed_user_ids:
-            await self._reply(update, "This bot is private and your account is not authorized.")
+            await self._reply(update, translated_text("private_only", DEFAULT_LANGUAGE))
             return None
         profile = await asyncio.to_thread(self._users.touch, user.id, user.username, user.full_name)
         if profile.is_blocked:
-            await self._reply(update, "Access to this bot has been blocked by the owner.")
+            await self._reply(update, translated_text("blocked", profile.language or DEFAULT_LANGUAGE))
             return None
         return user.id
 
@@ -1087,13 +1136,9 @@ class AccountingMenuHandlers:
         rows = [
             [button("dashboard", language)],
             [button("money_in", language), button("money_out", language)],
-            [button("inventory", language), button("banking", language)],
-            [button("contacts", language), button("financial_reports", language)],
-            [button("activity", language), button("smart_import", language)],
-            [button("help_ai", language), button("settings", language)],
+            [button("inventory", language), button("financial_reports", language)],
+            [button("more", language)],
         ]
-        if user_id in self._settings.owner_telegram_user_ids:
-            rows.append([button("owner_panel", language)])
         return self._keyboard(rows)
 
     def _contacts_keyboard(self, language: str) -> ReplyKeyboardMarkup:
@@ -1178,17 +1223,16 @@ class AccountingMenuHandlers:
 
     @staticmethod
     def _review(draft: dict[str, object], language: str) -> str:
-        title = str(draft.get("operation", "entry")).replace("_", " ").upper()
-        lines = [f"🔎 {title}", ""]
-        labels = {
-            "description": "Description", "amount": "Amount", "account": "Account",
-            "category": "Category", "contact_type": "Type", "name": "Name",
-            "email": "Email", "phone": "Phone", "tax_id": "Tax ID",
-            "contact_label": "Contact", "subtotal": "Subtotal", "tax_rate": "Tax %",
-            "due_date": "Due", "document_number": "Document", "outstanding": "Outstanding",
-            "from_account": "From", "to_account": "To", "debit_account": "Debit",
-            "credit_account": "Credit", "date": "Date",
+        lines = [f"🔎 {_u('review', language)}", ""]
+        label_sets = {
+            "en": ["Description", "Amount", "Account", "Category", "Type", "Name", "Email", "Phone", "Tax ID", "Contact", "Subtotal", "Tax %", "Due", "Document", "Outstanding", "From", "To", "Debit", "Credit", "Date"],
+            "uz": ["Tavsif", "Summa", "Hisob", "Toifa", "Tur", "Nom", "Email", "Telefon", "Soliq ID", "Kontakt", "Oraliq jami", "Soliq %", "Muddat", "Hujjat", "Qoldiq", "Qayerdan", "Qayerga", "Debet", "Kredit", "Sana"],
+            "tr": ["Açıklama", "Tutar", "Hesap", "Kategori", "Tür", "Ad", "E-posta", "Telefon", "Vergi no", "Kişi", "Ara toplam", "Vergi %", "Vade", "Belge", "Kalan", "Kimden", "Kime", "Borç", "Alacak", "Tarih"],
+            "it": ["Descrizione", "Importo", "Conto", "Categoria", "Tipo", "Nome", "Email", "Telefono", "Codice fiscale", "Contatto", "Imponibile", "Imposta %", "Scadenza", "Documento", "Residuo", "Da", "A", "Dare", "Avere", "Data"],
+            "ru": ["Описание", "Сумма", "Счёт", "Категория", "Тип", "Название", "Email", "Телефон", "Налоговый номер", "Контакт", "Подытог", "Налог %", "Срок", "Документ", "Остаток", "Из", "В", "Дебет", "Кредит", "Дата"],
         }
+        keys = ["description", "amount", "account", "category", "contact_type", "name", "email", "phone", "tax_id", "contact_label", "subtotal", "tax_rate", "due_date", "document_number", "outstanding", "from_account", "to_account", "debit_account", "credit_account", "date"]
+        labels = dict(zip(keys, label_sets.get(language, label_sets["en"])))
         for key, label in labels.items():
             value = draft.get(key)
             if value not in (None, ""):
@@ -1197,48 +1241,48 @@ class AccountingMenuHandlers:
                 elif isinstance(value, date):
                     value = value.isoformat()
                 lines.append(f"{label}: {value}")
-        lines.extend(["", "Confirm this balanced accounting entry?"])
+        lines.extend(["", _u("confirm_entry", language)])
         return "\n".join(lines)
 
     @staticmethod
-    def _format_profit_loss(report: ProfitLossReport) -> str:
-        lines = [f"📊 PROFIT & LOSS\n{report.period_start} — {report.period_end}", "", "INCOME"]
-        lines.extend(f"• {item.name}: {money(item.balance)}" for item in report.income)
+    def _format_profit_loss(report: ProfitLossReport, language: str = DEFAULT_LANGUAGE) -> str:
+        lines = [f"📊 {_u('profit_loss', language)}\n{report.period_start} — {report.period_end}", "", _u("income", language).upper()]
+        lines.extend(f"• {localize_account_name(item.code, item.name, language)}: {money(item.balance)}" for item in report.income)
         if not report.income:
             lines.append("• —")
-        lines.extend([f"Total income: {money(report.total_income)}", "", "EXPENSES"])
-        lines.extend(f"• {item.name}: {money(item.balance)}" for item in report.expenses)
+        lines.extend([f"{_u('total_income', language)}: {money(report.total_income)}", "", _u("expenses", language).upper()])
+        lines.extend(f"• {localize_account_name(item.code, item.name, language)}: {money(item.balance)}" for item in report.expenses)
         if not report.expenses:
             lines.append("• —")
-        lines.extend([f"Total expenses: {money(report.total_expenses)}", "", f"NET PROFIT: {money(report.net_profit)}"])
+        lines.extend([f"{_u('total_expenses', language)}: {money(report.total_expenses)}", "", f"{_u('net_profit', language).upper()}: {money(report.net_profit)}"])
         return "\n".join(lines)
 
     @staticmethod
-    def _format_balance_sheet(report: BalanceSheetReport) -> str:
-        lines = [f"⚖️ BALANCE SHEET\nAs of {report.as_of}", "", "ASSETS"]
-        lines.extend(f"• {item.name}: {money(item.balance)}" for item in report.assets)
-        lines.extend([f"Total assets: {money(report.total_assets)}", "", "LIABILITIES"])
-        lines.extend(f"• {item.name}: {money(item.balance)}" for item in report.liabilities)
-        lines.extend([f"Total liabilities: {money(report.total_liabilities)}", "", "EQUITY"])
-        lines.extend(f"• {item.name}: {money(item.balance)}" for item in report.equity)
-        lines.extend([f"• Current earnings: {money(report.current_earnings)}", f"Total equity: {money(report.total_equity)}", "", f"CHECK: {money(report.total_assets)} = {money(report.total_liabilities + report.total_equity)}"])
+    def _format_balance_sheet(report: BalanceSheetReport, language: str = DEFAULT_LANGUAGE) -> str:
+        lines = [f"⚖️ {_u('balance_sheet', language)}\n{_u('as_of', language)} {report.as_of}", "", _u("assets", language).upper()]
+        lines.extend(f"• {localize_account_name(item.code, item.name, language)}: {money(item.balance)}" for item in report.assets)
+        lines.extend([f"{_u('total_assets', language)}: {money(report.total_assets)}", "", _u("liabilities", language).upper()])
+        lines.extend(f"• {localize_account_name(item.code, item.name, language)}: {money(item.balance)}" for item in report.liabilities)
+        lines.extend([f"{_u('total_liabilities', language)}: {money(report.total_liabilities)}", "", _u("equity", language).upper()])
+        lines.extend(f"• {localize_account_name(item.code, item.name, language)}: {money(item.balance)}" for item in report.equity)
+        lines.extend([f"• {_u('current_earnings', language)}: {money(report.current_earnings)}", f"{_u('total_equity', language)}: {money(report.total_equity)}", "", f"{_u('check', language)}: {money(report.total_assets)} = {money(report.total_liabilities + report.total_equity)}"])
         return "\n".join(lines)
 
     @staticmethod
-    def _format_trial_balance(report: TrialBalanceReport) -> str:
-        lines = [f"🧮 TRIAL BALANCE\nAs of {report.as_of}", "", "Account · Debit · Credit"]
-        lines.extend(f"{item.code} {item.name}\n  {money(item.debit)} · {money(item.credit)}" for item in report.accounts)
-        lines.extend(["", f"TOTAL: {money(report.total_debits)} · {money(report.total_credits)}"])
+    def _format_trial_balance(report: TrialBalanceReport, language: str = DEFAULT_LANGUAGE) -> str:
+        lines = [f"🧮 {_u('trial_balance', language)}\n{_u('as_of', language)} {report.as_of}", "", _u("account_debit_credit", language)]
+        lines.extend(f"{item.code} {localize_account_name(item.code, item.name, language)}\n  {money(item.debit)} · {money(item.credit)}" for item in report.accounts)
+        lines.extend(["", f"{_u('total', language).upper()}: {money(report.total_debits)} · {money(report.total_credits)}"])
         return "\n".join(lines)
 
     @staticmethod
-    def _format_open_items(report: OpenItemsReport, document_type: str) -> str:
-        title = "RECEIVABLES" if document_type == "invoice" else "PAYABLES"
-        lines = [f"{'📥' if document_type == 'invoice' else '📤'} {title}\nAs of {report.as_of}", ""]
+    def _format_open_items(report: OpenItemsReport, document_type: str, language: str = DEFAULT_LANGUAGE) -> str:
+        title = _u("receivables_title" if document_type == "invoice" else "payables_title", language)
+        lines = [f"{'📥' if document_type == 'invoice' else '📤'} {title}\n{_u('as_of', language)} {report.as_of}", ""]
         for item in report.documents:
-            overdue = " · OVERDUE" if item.due_date < report.as_of else ""
-            lines.append(f"• {item.number} · {item.contact_name}\n  Due {item.due_date}: {money(item.outstanding)}{overdue}")
+            overdue = f" · {_u('overdue', language)}" if item.due_date < report.as_of else ""
+            lines.append(f"• {item.number} · {item.contact_name}\n  {_u('due', language)} {item.due_date}: {money(item.outstanding)}{overdue}")
         if not report.documents:
-            lines.append("Nothing outstanding.")
-        lines.extend(["", f"TOTAL OUTSTANDING: {money(report.total_outstanding)}"])
+            lines.append(_u("nothing_outstanding", language))
+        lines.extend(["", f"{_u('total_outstanding', language)}: {money(report.total_outstanding)}"])
         return "\n".join(lines)

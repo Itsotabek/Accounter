@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import func, select
 
 from fifo_accounting_bot.exceptions import InsufficientStockError, NotFoundError, ValidationError
-from fifo_accounting_bot.models import JournalEntry, PurchaseBatch, Sale, SaleAllocation
+from fifo_accounting_bot.models import JournalEntry, ProductTranslation, PurchaseBatch, Sale, SaleAllocation
 
 
 def test_sale_consumes_oldest_dated_batches_first(inventory):
@@ -95,6 +95,36 @@ def test_inventory_is_isolated_by_telegram_user(inventory):
 
     assert service.get_stock(1, "SAME-SKU")[0].quantity == Decimal("7.0000")
     assert service.get_stock(2, "SAME-SKU")[0].quantity == Decimal("2.0000")
+
+
+def test_product_name_and_unit_follow_selected_language(inventory):
+    service, sessions = inventory
+    owner_id = 313
+    service.add_product(owner_id, "PENCIL", "Pencil", "pieces", language="en")
+
+    assert service.get_stock(owner_id, "PENCIL", "en")[0].name == "Pencil"
+    uzbek = service.get_stock(owner_id, "PENCIL", "uz")[0]
+    assert uzbek.name == "Qalam"
+    assert uzbek.unit == "dona"
+
+    with sessions() as session:
+        assert session.scalar(select(func.count(ProductTranslation.id))) == 5
+
+
+def test_existing_standard_product_without_translation_rows_uses_glossary(inventory):
+    service, _ = inventory
+    owner_id = 314
+    service.add_product(owner_id, "PENCIL", "Pencil", "pcs")
+
+    assert service.get_stock(owner_id, "PENCIL", "uz")[0].name == "Qalam"
+
+
+def test_unknown_brand_name_is_preserved_across_languages(inventory):
+    service, _ = inventory
+    owner_id = 315
+    service.add_product(owner_id, "BRAND", "Acme Ultra", "pcs", language="en")
+
+    assert service.get_stock(owner_id, "BRAND", "it")[0].name == "Acme Ultra"
 
 
 def test_same_day_batches_use_creation_order(inventory):

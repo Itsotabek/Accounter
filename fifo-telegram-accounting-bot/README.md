@@ -1,6 +1,6 @@
 # Accounter — Telegram Accounting Bot
 
-A runnable, button-driven bookkeeping system for Telegram. Version 0.4 adds a genuine double-entry general ledger around the original FIFO inventory engine, so inventory is now one accounting module rather than the whole product.
+A runnable, button-driven bookkeeping system for Telegram. Version 0.5 simplifies the main menu, completes multilingual financial screens, and adds language-aware catalog labels around the double-entry ledger and FIFO inventory engine.
 
 The service layer has no Telegram dependency. Telegram is the user interface; the same accounting services can later power a web app, API, desktop client, or country-specific compliance module.
 
@@ -8,6 +8,7 @@ The service layer has no Telegram dependency. Telegram is the user interface; th
 
 - Keeps every Telegram user's books, contacts, documents, and inventory separate.
 - Offers Uzbek, Turkish, Italian, English, and Russian with a first-run language chooser and persistent per-user preference.
+- Shows common product names and units in the selected language while preserving stable SKUs and accounting history. Unknown brand names stay unchanged instead of being mistranslated.
 - Provides a persistent button menu and guided step-by-step forms, so normal use does not require slash commands.
 - Creates a standard chart of accounts automatically for each user.
 - Posts every new accounting operation using equal debits and credits.
@@ -61,6 +62,7 @@ src/fifo_accounting_bot/
 │   └── ai_helper.py     # Optional read-only OpenAI Responses integration
 ├── config.py            # Environment configuration
 ├── database.py          # SQLAlchemy engine/session setup
+├── localization.py      # Product, unit, and chart-of-account display labels
 ├── models.py            # Ledger, accounts, contacts, documents, FIFO records
 ├── accounting_schemas.py # General-accounting report objects
 ├── schemas.py           # FIFO service result objects
@@ -144,13 +146,15 @@ Open the bot and tap **START** once. First choose Uzbek, Turkish, Italian, Engli
 ```text
 🏠 Dashboard
 💰 Sales & income       💸 Bills & expenses
-📦 Inventory            🏦 Cash & banking
-👥 Customers & suppliers 📈 Financial reports
-🧾 Activity             📷 QR / Smart import
-🧠 Help & AI            ⚙️ Settings
+📦 Inventory            📈 Financial reports
+☰ More
 ```
 
-The configured owner also sees **🛡 Owner panel**; ordinary users do not. Settings displays the current role but cannot promote a user. Owner IDs are controlled only through the private environment configuration.
+The **☰ More** panel contains Cash & banking, Customers & suppliers, Activity, QR / Smart import, Help & AI, and Settings. This keeps the daily actions visible without crowding the home screen.
+
+The configured owner sees **🛡 Owner panel** inside Settings; ordinary users cannot see or open it. Settings displays the current role but cannot promote a user. Owner IDs are controlled only through the private `OWNER_TELEGRAM_USER_IDS` environment variable. On Railway, add that variable to the **Accounter bot service**, not the PostgreSQL service, then deploy the pending change.
+
+Product localization is display-only. For example, a product entered as `Pencil` remains tied to the same SKU and FIFO batches, but is displayed as `Qalam` in Uzbek, `Kurşun kalem` in Turkish, `Matita` in Italian, and `Карандаш` in Russian. Common catalog terms use the built-in glossary and a dedicated `product_translations` table. Custom names and brands are preserved as entered; more glossary entries or a reviewed translation provider can be added later without changing transactions.
 
 Inside **💰 Sales & income**, record received income, create a customer invoice, receive an invoice payment, or open the FIFO sale flow. Inside **💸 Bills & expenses**, record a paid expense, create a supplier bill, pay it, or record a FIFO stock purchase.
 
@@ -270,6 +274,48 @@ DATABASE_URL=postgresql+psycopg://fifo_bot:fifo_bot@localhost:5432/fifo_bot
 Restart the bot; it creates the initial schema. For an evolving production deployment, add Alembic migrations before changing models, use managed secrets instead of a committed `.env`, back up the database, and run only one schema migration job during deployment.
 
 SQLite data is not copied automatically. For a real migration, export and import each table while preserving primary keys and foreign-key order, or write a one-time SQLAlchemy transfer script and reconcile total quantities, inventory value, COGS, and journal entry counts afterward.
+
+## Deploy on Railway
+
+Railway must build from the directory that directly contains `Dockerfile`,
+`pyproject.toml`, `requirements.txt`, and `src`. Do not upload the ZIP itself as
+the repository contents. Extract it, then place the files inside the extracted
+project directory at the top level of the GitHub repository. If the repository
+already contains a wrapper directory named `fifo-telegram-accounting-bot`, set
+the Railway service **Root Directory** to `/fifo-telegram-accounting-bot`.
+
+1. In Railway, choose **New Project -> Deploy from GitHub repo**.
+2. Add **PostgreSQL** from the project's **+ New** menu.
+3. In the bot service's **Variables** tab, add:
+
+   ```dotenv
+   TELEGRAM_BOT_TOKEN=your-token-from-BotFather
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   LOG_LEVEL=INFO
+   OWNER_TELEGRAM_USER_IDS=your-numeric-telegram-user-id
+   ALLOWED_TELEGRAM_USER_IDS=
+   BOT_OWNER_NAME=Your name or company
+   SUPPORT_CONTACT=@your_bot_username
+   ```
+
+   Use the actual PostgreSQL service name if Railway did not name it `Postgres`.
+   Leave `OPENAI_API_KEY` unset when AI is not required. Seal the Telegram token
+   after saving it.
+
+4. Railway automatically detects the included `Dockerfile`. Clear any old custom
+   command such as `start.sh`. If a Start Command override is present, set it to:
+
+   ```text
+   python -m fifo_accounting_bot
+   ```
+
+5. Deploy as one persistent service. The bot uses Telegram long polling, so it
+   does not need a generated public domain or an HTTP port.
+
+The first run creates the database schema. When the Railway deployment is
+healthy, stop the local copy of the bot: Telegram permits only one polling
+process per bot token. The local SQLite database is not transferred to Railway
+automatically.
 
 ## Add another accounting service
 

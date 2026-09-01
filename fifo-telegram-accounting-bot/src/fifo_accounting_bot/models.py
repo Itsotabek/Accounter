@@ -51,6 +51,28 @@ class Product(Base):
     sales: Mapped[list["Sale"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
+    translations: Mapped[list["ProductTranslation"]] = relationship(
+        back_populates="product", cascade="all, delete-orphan"
+    )
+
+
+class ProductTranslation(Base):
+    """Localized display label; SKU and accounting history remain language-neutral."""
+
+    __tablename__ = "product_translations"
+    __table_args__ = (
+        UniqueConstraint("product_id", "language", name="uq_product_translation_language"),
+        CheckConstraint("length(name) > 0", name="ck_product_translation_name_not_empty"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    language: Mapped[str] = mapped_column(String(8), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    product: Mapped[Product] = relationship(back_populates="translations")
 
 
 class ArchivedProduct(Base):

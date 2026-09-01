@@ -1,9 +1,0 @@
-python-telegram-bot<23,>=22.8
-SQLAlchemy<2.1,>=2.0.52
-python-dotenv<2,>=1.1
-psycopg[binary]<4,>=3.2
-opencv-python-headless<5,>=4.10
-openai<3,>=2.20
-
-[dev]
-pytest<10,>=8.3

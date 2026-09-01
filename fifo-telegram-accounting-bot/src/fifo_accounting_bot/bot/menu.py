@@ -33,6 +33,7 @@ from fifo_accounting_bot.bot.i18n import (
     LANGUAGE_DISPLAY,
     button,
     button_values,
+    error_text,
     field_name,
     matches_button,
     text as translated_text,
@@ -40,6 +41,7 @@ from fifo_accounting_bot.bot.i18n import (
 from fifo_accounting_bot.bot.smart_import import SmartPayload, decode_qr_image, parse_smart_payload
 from fifo_accounting_bot.config import Settings
 from fifo_accounting_bot.exceptions import AccountingError, ValidationError
+from fifo_accounting_bot.localization import localize_product_name, localize_unit
 from fifo_accounting_bot.services import InventoryService
 from fifo_accounting_bot.services.ai_helper import AIHelper
 from fifo_accounting_bot.services.users import UserService
@@ -56,6 +58,7 @@ REPORT = button("report")
 SMART_IMPORT = button("smart_import")
 HELP = button("help_ai")
 SETTINGS = button("settings")
+MORE = button("more")
 MONEY_IN = button("money_in")
 MONEY_OUT = button("money_out")
 BANKING = button("banking")
@@ -106,10 +109,8 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     [
         [DASHBOARD],
         [MONEY_IN, MONEY_OUT],
-        [INVENTORY, BANKING],
-        [CONTACTS, FINANCIAL_REPORTS],
-        [ACTIVITY, SMART_IMPORT],
-        [HELP, SETTINGS],
+        [INVENTORY, FINANCIAL_REPORTS],
+        [MORE],
     ],
     resize_keyboard=True,
     is_persistent=True,
@@ -211,6 +212,7 @@ class GuidedMenuHandlers:
                     MessageHandler(button_filter("ask_ai"), self.begin_ai_question),
                     MessageHandler(button_filter("explain_report"), self.explain_report),
                     MessageHandler(button_filter("settings"), self.show_settings),
+                    MessageHandler(button_filter("more"), self.show_more_panel),
                     MessageHandler(button_filter("language"), self.choose_language),
                     MessageHandler(button_filter("ai_enable"), self.enable_ai),
                     MessageHandler(button_filter("ai_disable"), self.disable_ai),
@@ -287,15 +289,17 @@ class GuidedMenuHandlers:
     async def choose_language(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:
-        if await self._authorize(update) is None:
+        user_id = await self._authorize(update)
+        if user_id is None:
             return ConversationHandler.END
+        language = self._language(context, user_id)
         keyboard = ReplyKeyboardMarkup(
             [[label] for label in LANGUAGE_BUTTONS],
             resize_keyboard=True,
             is_persistent=True,
             input_field_placeholder="Language / Til / Dil / Lingua / Язык",
         )
-        await self._reply(update, translated_text("choose_language"), keyboard)
+        await self._reply(update, translated_text("choose_language", language), keyboard)
         return LANGUAGE_SELECT
 
     async def select_language(
@@ -404,6 +408,26 @@ class GuidedMenuHandlers:
         )
         return ConversationHandler.END
 
+    async def show_more_panel(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        user_id = await self._authorize(update)
+        if user_id is None:
+            return ConversationHandler.END
+        language = self._language(context, user_id)
+        rows = [
+            [button("banking", language), button("contacts", language)],
+            [button("activity", language), button("smart_import", language)],
+            [button("help_ai", language), button("settings", language)],
+            [button("main_menu", language)],
+        ]
+        await self._reply(
+            update,
+            translated_text("more_panel", language),
+            ReplyKeyboardMarkup(rows, resize_keyboard=True, is_persistent=True),
+        )
+        return ConversationHandler.END
+
     async def enable_ai(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         user_id = await self._authorize(update)
         if user_id is None:
@@ -448,7 +472,7 @@ class GuidedMenuHandlers:
         if user_id is None:
             return ConversationHandler.END
         language = self._language(context, user_id)
-        products = await asyncio.to_thread(self._service.get_stock, user_id)
+        products = await asyncio.to_thread(self._service.get_stock, user_id, None, language)
         if not products:
             await self._reply(update, format_stock(products, language), self._main_keyboard(language, user_id))
             return ConversationHandler.END
@@ -471,9 +495,9 @@ class GuidedMenuHandlers:
         language = self._language(context, user_id)
         sku = self._text(update).upper()
         try:
-            product = (await asyncio.to_thread(self._service.get_stock, user_id, sku))[0]
+            product = (await asyncio.to_thread(self._service.get_stock, user_id, sku, language))[0]
         except AccountingError as exc:
-            await self._reply(update, f"⚠️ {exc}")
+            await self._reply(update, f"⚠️ {error_text(exc, language)}")
             return REMOVE_SELECT
         context.user_data["guided_draft"].update({"sku": sku, "name": product.name})
         await self._reply(
@@ -547,13 +571,13 @@ class GuidedMenuHandlers:
         language = self._language(context, user_id)
         question = self._text(update)
         if not question or len(question) > 1500:
-            await self._reply(update, "Please send a question between 1 and 1,500 characters.")
+            await self._reply(update, translated_text("question_length", language))
             return AI_QUESTION
         try:
             answer = await asyncio.to_thread(self._ai.explain, question, language)
         except Exception:
             LOGGER.exception("AI explanation request failed")
-            await self._reply(update, "The AI helper is temporarily unavailable. Your accounting data was not changed.", self._help_keyboard(language))
+            await self._reply(update, translated_text("ai_temporary", language), self._help_keyboard(language))
             return ConversationHandler.END
         context.user_data.pop("guided_draft", None)
         await self._reply(update, f"✨ {answer}", self._help_keyboard(language))
@@ -590,7 +614,7 @@ class GuidedMenuHandlers:
             )
         except Exception:
             LOGGER.exception("AI report explanation failed")
-            await self._reply(update, "The AI helper is temporarily unavailable. Your accounting data was not changed.", self._help_keyboard(language))
+            await self._reply(update, translated_text("ai_temporary", language), self._help_keyboard(language))
             return ConversationHandler.END
         await self._reply(update, f"💡 {answer}", self._help_keyboard(language))
         return ConversationHandler.END
@@ -613,7 +637,14 @@ class GuidedMenuHandlers:
         )
         await self._reply(
             update,
-            f"🛡 OWNER PANEL\n\n👥 Registered users: {len(users)}\n🤖 AI service: {'connected' if self._ai.available else 'not connected'}\n🔐 Access: owner-only",
+            translated_text(
+                "owner_summary",
+                language,
+                count=len(users),
+                ai=translated_text(
+                    "connected" if self._ai.available else "not_connected", language
+                ),
+            ),
             keyboard,
         )
         return ConversationHandler.END
@@ -629,15 +660,24 @@ class GuidedMenuHandlers:
             await self._reply(update, translated_text("owner_only", language), self._main_keyboard(language, user_id))
             return ConversationHandler.END
         users = await asyncio.to_thread(self._users.list_users, 30)
-        lines = ["👥 USERS", ""]
+        lines = [translated_text("users_title", language), ""]
         for item in users:
-            name = item.display_name or "Unnamed"
-            username = f"@{item.username}" if item.username else "no username"
-            role = "Owner" if self._is_owner(item.telegram_user_id) else "User"
-            state = "blocked" if item.is_blocked else "active"
+            name = item.display_name or translated_text("unnamed", language)
+            username = (
+                f"@{item.username}"
+                if item.username
+                else translated_text("no_username", language)
+            )
+            role = translated_text(
+                "role_owner" if self._is_owner(item.telegram_user_id) else "role_user",
+                language,
+            )
+            state = translated_text(
+                "user_blocked" if item.is_blocked else "active", language
+            )
             lines.append(f"• {name} · {username}\n  ID {item.telegram_user_id} · {role} · {state}")
         if not users:
-            lines.append("No registered users yet.")
+            lines.append(translated_text("no_users", language))
         await self._reply(update, "\n".join(lines), self._owner_keyboard(language))
         return ConversationHandler.END
 
@@ -655,7 +695,17 @@ class GuidedMenuHandlers:
         uptime_seconds = int(time.monotonic() - self._started_at)
         await self._reply(
             update,
-            f"🩺 BOT HEALTH\n\n✅ Bot process: running\n✅ Database: connected\n⏱ Uptime: {uptime_seconds // 3600}h {(uptime_seconds % 3600) // 60}m\n📦 Inventory units: {quantity(report.inventory_units)}\n🧠 AI: {'connected' if self._ai.available else 'not connected'}\n🏷 Version: {__version__}",
+            translated_text(
+                "owner_health",
+                language,
+                hours=uptime_seconds // 3600,
+                minutes=(uptime_seconds % 3600) // 60,
+                units=quantity(report.inventory_units),
+                ai=translated_text(
+                    "connected" if self._ai.available else "not_connected", language
+                ),
+                version=__version__,
+            ),
             self._owner_keyboard(language),
         )
         return ConversationHandler.END
@@ -670,7 +720,7 @@ class GuidedMenuHandlers:
         language = self._language(context, owner_id)
         try:
             stock, report = await asyncio.gather(
-                asyncio.to_thread(self._service.get_stock, owner_id),
+                asyncio.to_thread(self._service.get_stock, owner_id, None, language),
                 asyncio.to_thread(self._service.get_report, owner_id),
             )
         except AccountingError as exc:
@@ -687,7 +737,7 @@ class GuidedMenuHandlers:
         context.user_data.pop("guided_draft", None)
         language = self._language(context, owner_id)
         try:
-            lines = await asyncio.to_thread(self._service.get_stock, owner_id)
+            lines = await asyncio.to_thread(self._service.get_stock, owner_id, None, language)
         except AccountingError as exc:
             return await self._finish_error(update, context, exc)
         await self._reply(update, format_stock(lines, language), self._main_keyboard(language, owner_id))
@@ -724,7 +774,7 @@ class GuidedMenuHandlers:
     async def add_sku(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         sku = self._text(update).upper()
         if not sku or len(sku) > 64:
-            await self._reply(update, "SKU must contain 1 to 64 characters. Try again.")
+            await self._reply(update, translated_text("invalid_sku", self._language(context, update.effective_user.id)))
             return ADD_SKU
         context.user_data["guided_draft"]["sku"] = sku
         language = self._language(context, update.effective_user.id)
@@ -734,7 +784,7 @@ class GuidedMenuHandlers:
     async def add_name(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         name = self._text(update)
         if not name or len(name) > 200:
-            await self._reply(update, "Name must contain 1 to 200 characters. Try again.")
+            await self._reply(update, translated_text("invalid_name", self._language(context, update.effective_user.id)))
             return ADD_NAME
         context.user_data["guided_draft"]["name"] = name
         language = self._language(context, update.effective_user.id)
@@ -747,7 +797,7 @@ class GuidedMenuHandlers:
     async def add_unit(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         unit = self._text(update).lower()
         if not unit or len(unit) > 32:
-            await self._reply(update, "Unit must contain 1 to 32 characters. Try again.")
+            await self._reply(update, translated_text("invalid_unit", self._language(context, update.effective_user.id)))
             return ADD_UNIT
         context.user_data["guided_draft"]["unit"] = unit
         await self._show_add_confirmation(update, context)
@@ -770,6 +820,7 @@ class GuidedMenuHandlers:
                 draft["sku"],
                 draft["name"],
                 draft["unit"],
+                self._language(context, update.effective_user.id),
             )
         except AccountingError as exc:
             return await self._finish_error(update, context, exc)
@@ -777,7 +828,13 @@ class GuidedMenuHandlers:
         language = self._language(context, update.effective_user.id)
         await self._reply(
             update,
-            f"✅ Product created\n\n{result.sku} — {result.name}\nUnit: {result.unit}",
+            translated_text(
+                "product_created",
+                language,
+                sku=result.sku,
+                name=localize_product_name(result.name, language),
+                unit=localize_unit(result.unit, language),
+            ),
             self._main_keyboard(language, update.effective_user.id),
         )
         return ConversationHandler.END
@@ -798,14 +855,17 @@ class GuidedMenuHandlers:
         sku = self._text(update).upper()
         language = self._language(context, update.effective_user.id)
         if matches_button(self._text(update), "type_sku"):
-            await self._reply(update, "Type the product SKU:", self._cancel_keyboard(language))
+            await self._reply(update, translated_text("type_sku_prompt", language), self._cancel_keyboard(language))
             return PURCHASE_SKU
         try:
             stock = await asyncio.to_thread(
-                self._service.get_stock, update.effective_user.id, sku
+                self._service.get_stock, update.effective_user.id, sku, language
             )
         except AccountingError as exc:
-            await self._reply(update, f"{exc}\n\nChoose or type another SKU.")
+            await self._reply(
+                update,
+                f"{error_text(exc, language)}\n\n{translated_text('choose_another_sku', language)}",
+            )
             return PURCHASE_SKU
         last_cost = await asyncio.to_thread(
             self._service.get_last_purchase_unit_cost, update.effective_user.id, sku
@@ -832,7 +892,7 @@ class GuidedMenuHandlers:
         language = self._language(context, update.effective_user.id)
         keyboard = self._cancel_keyboard(language)
         if draft.get("last_cost") is not None:
-            label = f"Use last cost · {money(draft['last_cost'])}"
+            label = translated_text("use_last_cost", language, amount=money(draft["last_cost"]))
             draft["last_cost_button"] = label
             keyboard = ReplyKeyboardMarkup(
                 [[label], [button("cancel", language)]], resize_keyboard=True, is_persistent=True
@@ -885,6 +945,7 @@ class GuidedMenuHandlers:
             await self._reply(update, translated_text("confirm_or_cancel", self._language(context, update.effective_user.id)))
             return PURCHASE_CONFIRM
         draft = context.user_data["guided_draft"]
+        language = self._language(context, update.effective_user.id)
         try:
             result = await asyncio.to_thread(
                 self._service.record_purchase,
@@ -895,7 +956,7 @@ class GuidedMenuHandlers:
                 draft["date"],
             )
             stock = await asyncio.to_thread(
-                self._service.get_stock, update.effective_user.id, draft["sku"]
+                self._service.get_stock, update.effective_user.id, draft["sku"], language
             )
         except AccountingError as exc:
             return await self._finish_error(update, context, exc)
@@ -903,9 +964,17 @@ class GuidedMenuHandlers:
         language = self._language(context, update.effective_user.id)
         await self._reply(
             update,
-            f"✅ Purchase recorded\n\nBatch #{result.batch_id} · {result.sku}\n"
-            f"{quantity(result.quantity)} × {money(result.unit_cost)} = {money(result.total_cost)}\n"
-            f"New stock: {quantity(stock[0].quantity)} {stock[0].unit}",
+            translated_text(
+                "purchase_recorded",
+                language,
+                batch=result.batch_id,
+                sku=result.sku,
+                quantity=quantity(result.quantity),
+                cost=money(result.unit_cost),
+                total=money(result.total_cost),
+                stock=quantity(stock[0].quantity),
+                unit=stock[0].unit,
+            ),
             self._main_keyboard(language, update.effective_user.id),
         )
         return ConversationHandler.END
@@ -924,17 +993,20 @@ class GuidedMenuHandlers:
         sku = self._text(update).upper()
         language = self._language(context, update.effective_user.id)
         if matches_button(self._text(update), "type_sku"):
-            await self._reply(update, "Type the product SKU:", self._cancel_keyboard(language))
+            await self._reply(update, translated_text("type_sku_prompt", language), self._cancel_keyboard(language))
             return SALE_SKU
         try:
             stock = await asyncio.to_thread(
-                self._service.get_stock, update.effective_user.id, sku
+                self._service.get_stock, update.effective_user.id, sku, language
             )
         except AccountingError as exc:
-            await self._reply(update, f"{exc}\n\nChoose or type another SKU.")
+            await self._reply(
+                update,
+                f"{error_text(exc, language)}\n\n{translated_text('choose_another_sku', language)}",
+            )
             return SALE_SKU
         if stock[0].quantity <= 0:
-            await self._reply(update, f"{sku} is out of stock. Choose another product.")
+            await self._reply(update, translated_text("out_of_stock", language, sku=sku))
             return SALE_SKU
         last_price = await asyncio.to_thread(
             self._service.get_last_sale_unit_price, update.effective_user.id, sku
@@ -962,13 +1034,18 @@ class GuidedMenuHandlers:
         if parsed > draft["available"]:
             await self._reply(
                 update,
-                f"Not enough stock. Available: {quantity(draft['available'])} {draft['unit']}. Try a smaller quantity.",
+                translated_text(
+                    "not_enough_stock",
+                    language,
+                    quantity=quantity(draft["available"]),
+                    unit=draft["unit"],
+                ),
             )
             return SALE_QUANTITY
         draft["quantity"] = parsed
         rows: list[list[str]] = []
         if draft.get("last_price") is not None:
-            label = f"Use last price · {money(draft['last_price'])}"
+            label = translated_text("use_last_price", language, amount=money(draft["last_price"]))
             draft["last_price_button"] = label
             rows.append([label])
         language = self._language(context, update.effective_user.id)
@@ -1020,6 +1097,7 @@ class GuidedMenuHandlers:
             await self._reply(update, translated_text("confirm_or_cancel", self._language(context, update.effective_user.id)))
             return SALE_CONFIRM
         draft = context.user_data["guided_draft"]
+        language = self._language(context, update.effective_user.id)
         try:
             result = await asyncio.to_thread(
                 self._service.record_sale,
@@ -1030,20 +1108,24 @@ class GuidedMenuHandlers:
                 draft["date"],
             )
             stock = await asyncio.to_thread(
-                self._service.get_stock, update.effective_user.id, draft["sku"]
+                self._service.get_stock, update.effective_user.id, draft["sku"], language
             )
         except AccountingError as exc:
             return await self._finish_error(update, context, exc)
         warning = ""
         if stock[0].quantity <= 0:
-            warning = "\n\n⚠️ This product is now out of stock."
+            warning = f"\n\n{translated_text('now_out_of_stock', language)}"
         elif stock[0].quantity <= result.quantity:
-            warning = f"\n\n⚠️ Low stock: {quantity(stock[0].quantity)} {stock[0].unit} remaining."
+            warning = "\n\n" + translated_text(
+                "low_stock",
+                language,
+                quantity=quantity(stock[0].quantity),
+                unit=stock[0].unit,
+            )
         context.user_data.pop("guided_draft", None)
-        language = self._language(context, update.effective_user.id)
         await self._reply(
             update,
-            f"✅ {format_sale(result, language)}\nRemaining: {quantity(stock[0].quantity)} {stock[0].unit}{warning}",
+            f"✅ {format_sale(result, language)}\n{translated_text('remaining_stock', language, quantity=quantity(stock[0].quantity), unit=stock[0].unit)}{warning}",
             self._main_keyboard(language, update.effective_user.id),
         )
         return ConversationHandler.END
@@ -1078,7 +1160,7 @@ class GuidedMenuHandlers:
                 self._cancel_keyboard(self._language(context, update.effective_user.id)),
             )
             return REPORT_START
-        await self._reply(update, "Please choose one of the report buttons.")
+        await self._reply(update, translated_text("choose_report_button", self._language(context, update.effective_user.id)))
         return REPORT_CHOICE
 
     async def report_start(
@@ -1131,7 +1213,7 @@ class GuidedMenuHandlers:
             raw = await asyncio.to_thread(decode_qr_image, image_bytes)
             payload = parse_smart_payload(raw)
         except AccountingError as exc:
-            await self._reply(update, f"Could not scan that QR: {exc}\n\nTry another image or paste the data.")
+            await self._reply(update, translated_text("smart_error", self._language(context, update.effective_user.id)))
             return SMART_INPUT
         return await self._prepare_smart_payload(update, context, payload)
 
@@ -1140,17 +1222,17 @@ class GuidedMenuHandlers:
     ) -> int:
         document = update.effective_message.document
         if document.file_size and document.file_size > 64 * 1024:
-            await self._reply(update, "JSON files must be 64 KB or smaller. Try another file.")
+            await self._reply(update, translated_text("smart_error", self._language(context, update.effective_user.id)))
             return SMART_INPUT
         try:
             telegram_file = await document.get_file()
             raw = bytes(await telegram_file.download_as_bytearray()).decode("utf-8")
             payload = parse_smart_payload(raw)
         except UnicodeDecodeError:
-            await self._reply(update, "That file is not valid UTF-8 JSON. Try another file.")
+            await self._reply(update, translated_text("smart_error", self._language(context, update.effective_user.id)))
             return SMART_INPUT
         except AccountingError as exc:
-            await self._reply(update, f"Could not import that file: {exc}\n\nTry again or cancel.")
+            await self._reply(update, translated_text("smart_error", self._language(context, update.effective_user.id)))
             return SMART_INPUT
         return await self._prepare_smart_payload(update, context, payload)
 
@@ -1160,7 +1242,7 @@ class GuidedMenuHandlers:
         try:
             payload = parse_smart_payload(self._text(update))
         except AccountingError as exc:
-            await self._reply(update, f"Could not read that data: {exc}\n\nTry again or cancel.")
+            await self._reply(update, translated_text("smart_error", self._language(context, update.effective_user.id)))
             return SMART_INPUT
         return await self._prepare_smart_payload(update, context, payload)
 
@@ -1181,14 +1263,14 @@ class GuidedMenuHandlers:
                     sku,
                 ),
             }
-            await self._reply(update, f"📥 Purchase · {sku}\n\nSend the quantity.", self._cancel_keyboard(language))
+            await self._reply(update, translated_text("smart_buy_quantity", language, sku=sku), self._cancel_keyboard(language))
             return PURCHASE_QUANTITY
         if matches_button(choice, "sell_scanned"):
             stock = await asyncio.to_thread(
-                self._service.get_stock, update.effective_user.id, sku
+                self._service.get_stock, update.effective_user.id, sku, language
             )
             if stock[0].quantity <= 0:
-                await self._reply(update, f"{sku} is out of stock.", self._main_keyboard(language, update.effective_user.id))
+                await self._reply(update, translated_text("out_of_stock", language, sku=sku), self._main_keyboard(language, update.effective_user.id))
                 return ConversationHandler.END
             context.user_data["guided_draft"] = {
                 "operation": "sale",
@@ -1203,11 +1285,17 @@ class GuidedMenuHandlers:
             }
             await self._reply(
                 update,
-                f"📤 Sale · {sku}\nAvailable: {quantity(stock[0].quantity)} {stock[0].unit}\n\nSend the quantity.",
+                translated_text(
+                    "smart_sell_quantity",
+                    language,
+                    sku=sku,
+                    quantity=quantity(stock[0].quantity),
+                    unit=stock[0].unit,
+                ),
                 self._cancel_keyboard(language),
             )
             return SALE_QUANTITY
-        await self._reply(update, "Choose Purchase, Sale, or Cancel.")
+        await self._reply(update, translated_text("smart_choose_action", language))
         return SMART_ACTION
 
     async def _prepare_smart_payload(
@@ -1217,11 +1305,12 @@ class GuidedMenuHandlers:
         payload: SmartPayload,
     ) -> int:
         owner_id = update.effective_user.id
+        language = self._language(context, owner_id)
         if payload.kind == "lookup":
             try:
-                stock = await asyncio.to_thread(self._service.get_stock, owner_id, payload.sku)
+                stock = await asyncio.to_thread(self._service.get_stock, owner_id, payload.sku, language)
             except AccountingError as exc:
-                await self._reply(update, f"QR detected {payload.sku}, but {exc}", self._cancel_keyboard(self._language(context, owner_id)))
+                await self._reply(update, translated_text("import_rejected", language), self._cancel_keyboard(language))
                 return SMART_INPUT
             context.user_data["guided_draft"] = {
                 "operation": "smart_lookup",
@@ -1229,9 +1318,15 @@ class GuidedMenuHandlers:
             }
             await self._reply(
                 update,
-                f"✅ QR recognized\n\n{stock[0].sku} — {stock[0].name}\n"
-                f"Stock: {quantity(stock[0].quantity)} {stock[0].unit}\n"
-                f"FIFO value: {money(stock[0].inventory_value)}\n\nWhat should I do?",
+                translated_text(
+                    "qr_recognized",
+                    language,
+                    sku=stock[0].sku,
+                    name=stock[0].name,
+                    quantity=quantity(stock[0].quantity),
+                    unit=stock[0].unit,
+                    value=money(stock[0].inventory_value),
+                ),
                 self._scanned_keyboard(self._language(context, owner_id)),
             )
             return SMART_ACTION
@@ -1247,9 +1342,9 @@ class GuidedMenuHandlers:
             return ADD_CONFIRM
 
         try:
-            stock = await asyncio.to_thread(self._service.get_stock, owner_id, payload.sku)
+            stock = await asyncio.to_thread(self._service.get_stock, owner_id, payload.sku, language)
         except AccountingError as exc:
-            await self._reply(update, f"Import rejected: {exc}", self._main_keyboard(self._language(context, owner_id), owner_id))
+            await self._reply(update, translated_text("import_rejected", language), self._main_keyboard(language, owner_id))
             return ConversationHandler.END
 
         if payload.kind == "purchase":
@@ -1264,12 +1359,7 @@ class GuidedMenuHandlers:
             return PURCHASE_CONFIRM
 
         if payload.quantity is None or payload.quantity > stock[0].quantity:
-            await self._reply(
-                update,
-                f"Import rejected: requested {quantity(payload.quantity or Decimal('0'))}, but only "
-                f"{quantity(stock[0].quantity)} {stock[0].unit} is available.",
-                self._main_keyboard(self._language(context, owner_id), owner_id),
-            )
+            await self._reply(update, translated_text("import_rejected", language), self._main_keyboard(language, owner_id))
             return ConversationHandler.END
         context.user_data["guided_draft"] = {
             "operation": "sale",
@@ -1287,7 +1377,7 @@ class GuidedMenuHandlers:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int, state: int, title: str
     ) -> int:
         language = self._language(context, owner_id)
-        products = await asyncio.to_thread(self._service.get_stock, owner_id)
+        products = await asyncio.to_thread(self._service.get_stock, owner_id, None, language)
         if not products:
             await self._reply(
                 update,
@@ -1429,7 +1519,7 @@ class GuidedMenuHandlers:
         context.user_data.pop("guided_draft", None)
         user_id = update.effective_user.id if update.effective_user else 0
         language = self._language(context, user_id)
-        await self._reply(update, f"⚠️ {error}", self._main_keyboard(language, user_id))
+        await self._reply(update, f"⚠️ {error_text(error, language)}", self._main_keyboard(language, user_id))
         return ConversationHandler.END
 
     async def _authorize(self, update: Update) -> int | None:
@@ -1439,7 +1529,7 @@ class GuidedMenuHandlers:
             return None
         if self._allowed_user_ids and user.id not in self._allowed_user_ids:
             LOGGER.warning("Rejected Telegram user ID %s", user.id)
-            await self._reply(update, "This bot is private and your account is not authorized.")
+            await self._reply(update, translated_text("private_only", DEFAULT_LANGUAGE))
             return None
         profile = await asyncio.to_thread(
             self._users.touch,
@@ -1449,7 +1539,8 @@ class GuidedMenuHandlers:
         )
         if profile.is_blocked:
             LOGGER.warning("Rejected blocked Telegram user ID %s", user.id)
-            await self._reply(update, "Access to this bot has been blocked by the owner.")
+            language = self._users.get(user.id).language if self._users.get(user.id) else DEFAULT_LANGUAGE
+            await self._reply(update, translated_text("blocked", language or DEFAULT_LANGUAGE))
             return None
         return user.id
 
@@ -1469,13 +1560,9 @@ class GuidedMenuHandlers:
         rows = [
             [button("dashboard", language)],
             [button("money_in", language), button("money_out", language)],
-            [button("inventory", language), button("banking", language)],
-            [button("contacts", language), button("financial_reports", language)],
-            [button("activity", language), button("smart_import", language)],
-            [button("help_ai", language), button("settings", language)],
+            [button("inventory", language), button("financial_reports", language)],
+            [button("more", language)],
         ]
-        if self._is_owner(user_id):
-            rows.append([button("owner_panel", language)])
         return ReplyKeyboardMarkup(
             rows,
             resize_keyboard=True,

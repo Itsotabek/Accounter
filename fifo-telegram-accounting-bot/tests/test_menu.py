@@ -24,6 +24,7 @@ from fifo_accounting_bot.bot.menu import (
     MAIN_KEYBOARD,
     MONEY_IN,
     MONEY_OUT,
+    MORE,
     PURCHASE,
     SETTINGS,
     SMART_IMPORT,
@@ -44,12 +45,13 @@ def test_main_keyboard_exposes_common_actions():
     assert DASHBOARD in labels
     assert MONEY_IN in labels
     assert MONEY_OUT in labels
-    assert BANKING in labels
-    assert CONTACTS in labels
     assert FINANCIAL_REPORTS in labels
-    assert SMART_IMPORT in labels
-    assert SETTINGS in labels
-    assert len(labels) == 11
+    assert MORE in labels
+    assert BANKING not in labels
+    assert CONTACTS not in labels
+    assert SMART_IMPORT not in labels
+    assert SETTINGS not in labels
+    assert len(labels) == 6
 
 
 def test_guided_menu_is_registered_before_legacy_commands(inventory):
@@ -144,7 +146,7 @@ def test_start_over_resets_the_current_draft(inventory):
     menu._reply.assert_awaited_once()
 
 
-def test_owner_button_is_hidden_from_users_and_visible_to_owner(inventory):
+def test_owner_button_is_hidden_from_users_and_visible_in_owner_settings(inventory):
     service, session_factory = inventory
     owner_id = 99
     settings = Settings(
@@ -157,8 +159,8 @@ def test_owner_button_is_hidden_from_users_and_visible_to_owner(inventory):
         settings,
     )
 
-    user_labels = [item.text for row in menu._main_keyboard("en", 100).keyboard for item in row]
-    owner_labels = [item.text for row in menu._main_keyboard("en", owner_id).keyboard for item in row]
+    user_labels = [item.text for row in menu._settings_keyboard("en", 100).keyboard for item in row]
+    owner_labels = [item.text for row in menu._settings_keyboard("en", owner_id).keyboard for item in row]
 
     assert "🛡 Owner panel" not in user_labels
     assert "🛡 Owner panel" in owner_labels
@@ -168,6 +170,21 @@ def test_every_supported_language_has_complete_button_labels():
     from fifo_accounting_bot.bot.i18n import BUTTONS, LANGUAGES
 
     assert all(set(values) == set(LANGUAGES) for values in BUTTONS.values())
+
+
+def test_every_supported_language_has_complete_interface_text():
+    from fifo_accounting_bot.bot.i18n import LANGUAGES, TEXT
+
+    assert all(set(values) == set(LANGUAGES) for values in TEXT.values())
+
+
+def test_accounting_copy_is_complete_for_every_language():
+    from fifo_accounting_bot.bot.accounting_menu import COPY, TERMS
+    from fifo_accounting_bot.bot.i18n import LANGUAGES
+
+    assert all(set(values) == set(LANGUAGES) for values in COPY.values())
+    assert set(TERMS) == set(LANGUAGES)
+    assert all(set(values) == set(TERMS["en"]) for values in TERMS.values())
 
 
 def test_first_start_requests_and_persists_language(inventory):
