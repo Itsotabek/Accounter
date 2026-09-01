@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fifo-telegram-accounting-bot"
+version = "0.4.0"
+description = "A modular Telegram accounting bot with FIFO inventory and double-entry journal records."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "python-telegram-bot>=22.8,<23",
+  "SQLAlchemy>=2.0.52,<2.1",
+  "python-dotenv>=1.1,<2",
+  "psycopg[binary]>=3.2,<4",
+  "opencv-python-headless>=4.10,<5",
+  "openai>=2.20,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<10"]
+
+[project.scripts]
+fifo-accounting-bot = "fifo_accounting_bot.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]

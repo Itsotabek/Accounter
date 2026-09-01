@@ -1,0 +1,25 @@
+2026-08-31 20:36:14,790 INFO fifo_accounting_bot.main: Starting Accounter Telegram bot
+2026-08-31 20:36:15,015 INFO telegram.ext.Application: Application started
+2026-08-31 21:05:56,647 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:05:57,661 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:05:59,176 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:32:37,591 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:38:38,261 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:38:39,275 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:38:40,788 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:38:43,046 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:59:09,967 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:59:10,922 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 21:59:12,442 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 22:23:27,927 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 22:57:35,752 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 22:57:36,756 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 22:57:38,271 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-08-31 23:17:05,268 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-09-01 03:12:22,624 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: Bad Gateway
+2026-09-01 14:21:34,735 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-09-01 14:21:35,761 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-09-01 14:21:37,269 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-09-01 15:49:33,453 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-09-01 16:28:59,003 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2026-09-01 16:36:03,704 WARNING fifo_accounting_bot.bot.handlers: Temporary Telegram network error; polling will retry: httpx.ConnectError: [Errno 11001] getaddrinfo failed

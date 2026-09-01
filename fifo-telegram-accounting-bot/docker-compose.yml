@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: fifo_bot
+      POSTGRES_USER: fifo_bot
+      POSTGRES_PASSWORD: fifo_bot
+    ports:
+      - "5432:5432"
+    volumes:
+      - fifo_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fifo_bot -d fifo_bot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fifo_postgres_data:
