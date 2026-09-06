@@ -1,12 +1,16 @@
 # Accounter — Telegram Accounting Bot
 
-A runnable, button-driven bookkeeping system for Telegram. Version 0.5 simplifies the main menu, completes multilingual financial screens, and adds language-aware catalog labels around the double-entry ledger and FIFO inventory engine.
+A runnable, button-driven bookkeeping system for Telegram. Version 0.6 is the Phase 0 product-foundation release: it preserves the simplified multilingual interface while introducing channel-independent users, business workspaces, memberships, audit events, and cross-channel operation receipts around the double-entry ledger and FIFO inventory engine.
 
 The service layer has no Telegram dependency. Telegram is the user interface; the same accounting services can later power a web app, API, desktop client, or country-specific compliance module.
 
 ## What it does
 
 - Keeps every Telegram user's books, contacts, documents, and inventory separate.
+- Automatically gives every existing or new Telegram user a private business workspace that a future web identity can join without moving the books again.
+- Separates the global bot-administrator role from organization roles such as owner, manager, accountant, cashier, and viewer.
+- Adds stable UUIDs for application users and businesses while retaining a non-destructive compatibility link to existing Telegram-scoped accounting records.
+- Provides append-only audit-event and idempotency infrastructure for future web, mobile, desktop, API, and Telegram write operations.
 - Offers Uzbek, Turkish, Italian, English, and Russian with a first-run language chooser and persistent per-user preference.
 - Shows common product names and units in the selected language while preserving stable SKUs and accounting history. Unknown brand names stay unchanged instead of being mistranslated.
 - Provides a persistent button menu and guided step-by-step forms, so normal use does not require slash commands.
@@ -59,6 +63,7 @@ src/fifo_accounting_bot/
 │   ├── accounting.py    # Double-entry ledger, documents, payments, reports
 │   ├── inventory.py     # Transactional FIFO inventory rules
 │   ├── users.py         # Language, AI preference, and access state
+│   ├── workspaces.py    # Product identities, organizations, roles, audit/idempotency
 │   └── ai_helper.py     # Optional read-only OpenAI Responses integration
 ├── config.py            # Environment configuration
 ├── database.py          # SQLAlchemy engine/session setup
@@ -71,6 +76,21 @@ tests/                   # Ledger, invoices, FIFO, rollback, UI, and validation 
 ```
 
 The dependency direction is `Telegram -> services -> database/models`. The accounting and inventory services can also be called from an API, CLI, web app, or another interface without changing their posting rules.
+
+## Phase 0 web-product preparation
+
+This release is the compatibility bridge between the Telegram prototype and the Phase 1 web product. It does **not** expose an HTTP API or web registration yet. It prepares the shared data foundation safely:
+
+- `application_users` represents a person independently of Telegram, email, web, or mobile login.
+- `external_identities` links a Telegram account now and can later link authenticated web/mobile identities to the same person.
+- `organizations` represents a business workspace rather than treating a Telegram account as the permanent business identity.
+- `organization_memberships` provides organization-level roles and is ready for invitations and multi-user teams.
+- `accounting_scope_id` keeps all existing records reachable without rewriting restored FIFO, invoice, payment, or ledger history during this release.
+- `audit_events` provides an append-only trail for product-level actions without storing Telegram message history.
+- `operation_receipts` provides the idempotency foundation that prevents the same future API command from being posted twice after retries.
+- `schema_revisions` records completed data upgrades. Startup provisions workspaces for existing Telegram users idempotently and creates a workspace for every new user.
+
+In Phase 1, the web API should authenticate a user, resolve an active organization, and pass its internal accounting scope to the existing service layer. Telegram remains a companion client. No web client should access database tables directly.
 
 ## Requirements
 
@@ -137,7 +157,7 @@ The dependency direction is `Telegram -> services -> database/models`. The accou
    python -m fifo_accounting_bot
    ```
 
-Database tables are created automatically. Existing FIFO databases are upgraded non-destructively: the new tables are added and prior FIFO journal entries are synchronized into the general ledger when financial reports are first used. Stop the bot with `Ctrl+C`.
+Database tables are created automatically. Existing FIFO databases are upgraded non-destructively: the new Phase 0 workspace tables are added, existing Telegram users are linked to private business workspaces, and prior FIFO journal entries are synchronized into the general ledger when financial reports are first used. Stop the bot with `Ctrl+C`.
 
 ## Telegram button menu
 
@@ -152,7 +172,7 @@ Open the bot and tap **START** once. First choose Uzbek, Turkish, Italian, Engli
 
 The **☰ More** panel contains Cash & banking, Customers & suppliers, Activity, QR / Smart import, Help & AI, and Settings. This keeps the daily actions visible without crowding the home screen.
 
-The configured owner sees **🛡 Owner panel** inside Settings; ordinary users cannot see or open it. Settings displays the current role but cannot promote a user. Owner IDs are controlled only through the private `OWNER_TELEGRAM_USER_IDS` environment variable. On Railway, add that variable to the **Accounter bot service**, not the PostgreSQL service, then deploy the pending change.
+The configured owner sees **🛡 Owner panel** inside Settings; ordinary users cannot see or open it. Settings now distinguishes the global bot role from the current business role and confirms that the private workspace is prepared for a future web connection. The owner panel also shows the number of provisioned business workspaces. It cannot promote users yet. Owner IDs are controlled only through the private `OWNER_TELEGRAM_USER_IDS` environment variable. On Railway, add that variable to the **Accounter bot service**, not the PostgreSQL service, then deploy the pending change.
 
 Product localization is display-only. For example, a product entered as `Pencil` remains tied to the same SKU and FIFO batches, but is displayed as `Qalam` in Uzbek, `Kurşun kalem` in Turkish, `Matita` in Italian, and `Карандаш` in Russian. Common catalog terms use the built-in glossary and a dedicated `product_translations` table. Custom names and brands are preserved as entered; more glossary entries or a reviewed translation provider can be added later without changing transactions.
 
@@ -332,9 +352,9 @@ The next useful modules are bank-statement import/reconciliation, attachments an
 
 - Set `ALLOWED_TELEGRAM_USER_IDS` unless this is intentionally a public service.
 - Use PostgreSQL for multiple processes or meaningful concurrent traffic.
-- Add Alembic migrations and automated database backups.
+- Keep the Phase 0 revision ledger, add Alembic before altering existing production columns, and maintain automated database backups.
 - Use a secret manager for the Telegram token and database credentials.
-- Add currency and organization models before supporting multiple currencies or companies per user.
+- Complete organization switching, currency setup, and country localization before supporting multiple currencies or several companies per user in the interface.
 - Decide how returns, batch corrections, taxes, discounts, landed cost, and negative inventory should work; this starter intentionally rejects negative inventory.
 - Configure centralized logging and monitoring without logging Telegram tokens or sensitive message contents.
 
