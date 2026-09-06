@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import (
     BigInteger,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -26,6 +28,191 @@ def utc_now() -> datetime:
 
 class Base(DeclarativeBase):
     pass
+
+
+def new_public_id() -> str:
+    """Return a database-independent public identifier for API-facing records."""
+
+    return str(uuid4())
+
+
+class ApplicationUser(Base):
+    """Channel-independent person that can later sign in from web or mobile."""
+
+    __tablename__ = "application_users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_public_id)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True, unique=True)
+    preferred_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    is_platform_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class Organization(Base):
+    """A business workspace shared by Telegram and future product clients."""
+
+    __tablename__ = "organizations"
+    __table_args__ = (
+        CheckConstraint("length(name) > 0", name="ck_organizations_name_not_empty"),
+        CheckConstraint(
+            "status IN ('active', 'archived')", name="ck_organizations_status"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_public_id)
+    # Existing services still scope books with an integer owner_id. Keeping the
+    # bridge explicit lets future web identities use an organization UUID while
+    # preserving every existing ledger and FIFO foreign-key relationship.
+    accounting_scope_id: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, unique=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    base_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    timezone_name: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    default_language: Mapped[str] = mapped_column(String(8), nullable=False, default="en")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    is_personal_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class ExternalIdentity(Base):
+    """Login or messaging identity linked to a channel-independent user."""
+
+    __tablename__ = "external_identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "subject", name="uq_external_identity_subject"),
+        CheckConstraint("length(provider) > 0", name="ck_identity_provider_not_empty"),
+        CheckConstraint("length(subject) > 0", name="ck_identity_subject_not_empty"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_public_id)
+    application_user_id: Mapped[str] = mapped_column(
+        ForeignKey("application_users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    subject: Mapped[str] = mapped_column(String(160), nullable=False)
+    active_organization_id: Mapped[str | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class OrganizationMembership(Base):
+    """Role-based access between an application user and a business."""
+
+    __tablename__ = "organization_memberships"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "application_user_id", name="uq_org_membership_user"
+        ),
+        CheckConstraint(
+            "role IN ('owner', 'manager', 'accountant', 'cashier', 'viewer')",
+            name="ck_org_membership_role",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'invited', 'suspended')",
+            name="ck_org_membership_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_public_id)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    application_user_id: Mapped[str] = mapped_column(
+        ForeignKey("application_users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="owner")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class AuditEvent(Base):
+    """Append-only product audit event, independent from Telegram messages."""
+
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        Index("ix_audit_business_created", "organization_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_public_id)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    actor_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("application_users.id", ondelete="SET NULL"), nullable=True
+    )
+    source: Mapped[str] = mapped_column(String(24), nullable=False)
+    action: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(60), nullable=False, default="")
+    entity_id: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    details: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class OperationReceipt(Base):
+    """Cross-channel idempotency record for future API write operations."""
+
+    __tablename__ = "operation_receipts"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "source", "idempotency_key",
+            name="uq_operation_receipt_key",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'completed', 'failed')",
+            name="ck_operation_receipt_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_public_id)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source: Mapped[str] = mapped_column(String(24), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    operation: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    result_reference: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class SchemaRevision(Base):
+    """Records completed additive/data upgrades run during deployment."""
+
+    __tablename__ = "schema_revisions"
+
+    revision: Mapped[str] = mapped_column(String(80), primary_key=True)
+    details: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    applied_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class Product(Base):
