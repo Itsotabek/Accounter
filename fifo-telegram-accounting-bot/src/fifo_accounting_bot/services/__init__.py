@@ -7,5 +7,12 @@ Future accounting modules can follow the same boundary.
 from fifo_accounting_bot.services.accounting import AccountingService
 from fifo_accounting_bot.services.inventory import InventoryService
 from fifo_accounting_bot.services.users import UserService
+from fifo_accounting_bot.services.workspaces import WorkspaceContext, WorkspaceService
 
-__all__ = ["AccountingService", "InventoryService", "UserService"]
+__all__ = [
+    "AccountingService",
+    "InventoryService",
+    "UserService",
+    "WorkspaceContext",
+    "WorkspaceService",
+]

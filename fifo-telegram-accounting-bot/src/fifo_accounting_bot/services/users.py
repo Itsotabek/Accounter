@@ -7,6 +7,11 @@ from sqlalchemy import select
 
 from fifo_accounting_bot.database import SessionFactory
 from fifo_accounting_bot.models import TelegramUser
+from fifo_accounting_bot.services.workspaces import (
+    BootstrapSummary,
+    WorkspaceContext,
+    WorkspaceService,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,8 +27,18 @@ class UserPreferences:
 
 
 class UserService:
-    def __init__(self, session_factory: SessionFactory):
+    def __init__(
+        self,
+        session_factory: SessionFactory,
+        platform_admin_telegram_ids: frozenset[int] = frozenset(),
+    ):
         self._sessions = session_factory
+        self._workspaces = WorkspaceService(
+            session_factory, platform_admin_telegram_ids
+        )
+
+    def bootstrap_workspaces(self) -> BootstrapSummary:
+        return self._workspaces.bootstrap_existing_telegram_users()
 
     def touch(
         self, telegram_user_id: int, username: str | None, display_name: str
@@ -42,6 +57,7 @@ class UserService:
                 row.display_name = display_name
                 row.last_seen_at = datetime.now(timezone.utc)
             session.flush()
+            self._workspaces.ensure_for_telegram_in_session(session, row)
             return self._result(row)
 
     def get(self, telegram_user_id: int) -> UserPreferences | None:
@@ -60,6 +76,8 @@ class UserService:
                 session.add(row)
             else:
                 row.language = language
+            session.flush()
+            self._workspaces.ensure_for_telegram_in_session(session, row)
 
     def set_ai_enabled(self, telegram_user_id: int, enabled: bool) -> None:
         with self._sessions.begin() as session:
@@ -72,6 +90,14 @@ class UserService:
                 session.add(row)
             else:
                 row.ai_enabled = enabled
+            session.flush()
+            self._workspaces.ensure_for_telegram_in_session(session, row)
+
+    def get_workspace(self, telegram_user_id: int) -> WorkspaceContext | None:
+        return self._workspaces.get_for_telegram(telegram_user_id)
+
+    def count_workspaces(self) -> int:
+        return self._workspaces.count_organizations()
 
     def list_users(self, limit: int = 50) -> list[UserPreferences]:
         with self._sessions() as session:
