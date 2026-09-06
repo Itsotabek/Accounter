@@ -232,7 +232,10 @@ def test_settings_renders_language_and_owner_role(inventory):
 
     assert state == ConversationHandler.END
     rendered = menu._reply.await_args.args[1]
-    assert "Ruolo: Proprietario" in rendered
+    assert "Ruolo nel bot: Proprietario" in rendered
+    assert "Attività: Test · Business" in rendered
+    assert "Ruolo aziendale: Proprietario" in rendered
+    assert "Spazio web: pronto per il futuro collegamento web" in rendered
     assert "Lingua: Italiano" in rendered
 
 
