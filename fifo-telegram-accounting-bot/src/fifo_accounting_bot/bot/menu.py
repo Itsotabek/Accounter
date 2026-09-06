@@ -381,6 +381,7 @@ class GuidedMenuHandlers:
         if user_id is None:
             return ConversationHandler.END
         profile = await asyncio.to_thread(self._users.get, user_id)
+        workspace = await asyncio.to_thread(self._users.get_workspace, user_id)
         language = self._language(context, user_id)
         is_owner = self._is_owner(user_id)
         ai_enabled = bool(profile and profile.ai_enabled and self._ai.available)
@@ -389,6 +390,9 @@ class GuidedMenuHandlers:
         else:
             ai_status = translated_text("ai_on" if ai_enabled else "ai_off", language)
         role = translated_text("role_owner" if is_owner else "role_user", language)
+        business_role = translated_text(
+            f"business_role_{workspace.organization_role}", language
+        ) if workspace else "—"
         rows = [[button("language", language)]]
         if self._ai.available:
             rows.append([button("ai_disable" if ai_enabled else "ai_enable", language)])
@@ -401,6 +405,11 @@ class GuidedMenuHandlers:
                 "settings",
                 language,
                 role=role,
+                business=workspace.organization_name if workspace else "—",
+                business_role=business_role,
+                workspace_status=translated_text(
+                    "workspace_ready" if workspace else "workspace_pending", language
+                ),
                 language_name=LANGUAGE_DISPLAY[language],
                 ai=ai_status,
             ),
@@ -630,6 +639,7 @@ class GuidedMenuHandlers:
             await self._reply(update, translated_text("owner_only", language), self._main_keyboard(language, user_id))
             return ConversationHandler.END
         users = await asyncio.to_thread(self._users.list_users, 200)
+        businesses = await asyncio.to_thread(self._users.count_workspaces)
         keyboard = ReplyKeyboardMarkup(
             [[button("owner_users", language), button("owner_health", language)], [button("main_menu", language)]],
             resize_keyboard=True,
@@ -641,6 +651,7 @@ class GuidedMenuHandlers:
                 "owner_summary",
                 language,
                 count=len(users),
+                businesses=businesses,
                 ai=translated_text(
                     "connected" if self._ai.available else "not_connected", language
                 ),

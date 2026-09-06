@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from telegram import BotCommand
 from telegram.ext import Application
 
@@ -9,6 +11,8 @@ from fifo_accounting_bot.bot.menu import GuidedMenuHandlers
 from fifo_accounting_bot.config import Settings
 from fifo_accounting_bot.services import AccountingService, InventoryService, UserService
 from fifo_accounting_bot.services.ai_helper import AIConfig, AIHelper
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def _set_bot_commands(application: Application) -> None:
@@ -32,7 +36,19 @@ def create_application(settings: Settings, inventory_service: InventoryService) 
         .post_init(_set_bot_commands)
         .build()
     )
-    users = UserService(inventory_service.session_factory)
+    users = UserService(
+        inventory_service.session_factory,
+        settings.owner_telegram_user_ids,
+    )
+    bootstrap = users.bootstrap_workspaces()
+    LOGGER.info(
+        "Phase 0 workspace bootstrap telegram_users=%s application_users=%s "
+        "organizations=%s revision_applied=%s",
+        bootstrap.telegram_users,
+        bootstrap.application_users,
+        bootstrap.organizations,
+        bootstrap.revision_applied,
+    )
     accounting = AccountingService(inventory_service.session_factory)
     ai = AIHelper(
         AIConfig(
